@@ -1,3 +1,4 @@
+import base64
 import html
 import json
 import re
@@ -13,6 +14,16 @@ MOBILE_UA = (
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 "
     "Mobile/15E148 Safari/604.1"
 )
+
+GRAPHQL_QUERY = """
+query getVisitorReviews($input: VisitorReviewsInput) {
+  visitorReviews(input: $input) {
+    items { id rating body visited created businessName }
+    total
+    showRecommendationSort
+  }
+}
+"""
 
 
 class CrawlError(RuntimeError):
@@ -35,13 +46,15 @@ class ReviewItem:
 
 
 class NaverPlaceCrawler:
-    """Public-page crawler with explicit failure states.
+    """네이버 공개 플레이스에서 구조화된 방문자리뷰만 수집한다.
 
-    It never treats arbitrary page text as a review. Review bodies are accepted
-    only when found inside structured JSON state and in a review-like object/path.
+    1) 매장명+주소로 플레이스를 찾고
+    2) 방문자리뷰 GraphQL을 최신순으로 호출하며
+    3) GraphQL이 구조 변경/차단될 경우 APOLLO_STATE 구조화 데이터로만 폴백한다.
+    임의의 화면 텍스트는 리뷰로 저장하지 않는다.
     """
 
-    def __init__(self, timeout: int = 15, pause: float = 0.6):
+    def __init__(self, timeout: int = 15, pause: float = 0.8):
         self.timeout = timeout
         self.pause = pause
         self.session = requests.Session()
@@ -54,15 +67,14 @@ class NaverPlaceCrawler:
         query = " ".join(x for x in [store_name, address] if x).strip()
         if not query:
             raise CrawlError("매장명/주소가 비어 있습니다")
-
         url = f"https://search.naver.com/search.naver?query={quote(query)}"
         r = self.session.get(url, timeout=self.timeout)
         if r.status_code != 200:
             raise CrawlError(f"네이버 검색 HTTP {r.status_code}")
-
         body = html.unescape(r.text)
         patterns = [
             r"m\.place\.naver\.com/(restaurant|place|cafe)/([0-9]{5,})",
+            r"(?:pcmap\.)?place\.naver\.com/(restaurant|place|cafe)/([0-9]{5,})",
             r"map\.naver\.com/(?:p/)?entry/place/([0-9]{5,})",
             r"(?:placeId|entryId)[=\"':]+([0-9]{5,})",
         ]
@@ -70,13 +82,116 @@ class NaverPlaceCrawler:
             m = re.search(pattern, body, flags=re.I)
             if not m:
                 continue
-            if i == 0:
+            if i <= 1:
                 ptype, pid = m.group(1).lower(), m.group(2)
             else:
-                ptype, pid = "place", m.group(1)
+                ptype, pid = "restaurant", m.group(1)
             return PlaceMatch(pid, ptype, url)
-
         raise CrawlError("네이버 검색결과에서 플레이스를 찾지 못했습니다")
+
+    @staticmethod
+    def _wtm_token(place_id: str, place_type: str) -> str:
+        raw = json.dumps({"arg": place_id, "type": place_type, "source": "place"}, ensure_ascii=False, separators=(",", ":"))
+        return base64.b64encode(raw.encode("utf-8")).decode("ascii")
+
+    def _graphql_reviews(self, place_id: str, place_type: str, limit: int) -> tuple[list[ReviewItem], str]:
+        types = []
+        for candidate in (place_type, "restaurant", "place"):
+            if candidate not in types:
+                types.append(candidate)
+        endpoints = ["https://api.place.naver.com/graphql", "https://pcmap-api.place.naver.com/place/graphql"]
+        errors = []
+        for business_type in types:
+            referer = f"https://m.place.naver.com/{business_type}/{place_id}/review/visitor"
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://m.place.naver.com",
+                "Referer": referer,
+                "x-wtm-graphql": self._wtm_token(place_id, business_type),
+            }
+            page = 1
+            items: list[ReviewItem] = []
+            while len(items) < limit and page <= 3:
+                payload = [{
+                    "operationName": "getVisitorReviews",
+                    "variables": {"input": {
+                        "businessId": place_id,
+                        "businessType": business_type,
+                        "display": min(20, max(1, limit - len(items))),
+                        "page": page,
+                        "sort": "recent",
+                        "getAuthorInfo": True,
+                        "includeContent": True,
+                        "includeReceiptPhotos": True,
+                        "isPhotoUsed": False,
+                        "item": "0",
+                    }},
+                    "query": GRAPHQL_QUERY,
+                }]
+                page_items = None
+                for endpoint in endpoints:
+                    for attempt in range(3):
+                        try:
+                            r = self.session.post(endpoint, headers=headers, json=payload, timeout=self.timeout)
+                        except requests.RequestException as exc:
+                            errors.append(f"{endpoint} {type(exc).__name__}")
+                            break
+                        if r.status_code in (403, 429) or r.status_code >= 500:
+                            errors.append(f"{endpoint} HTTP {r.status_code}")
+                            if attempt < 2:
+                                time.sleep((attempt + 1) * 1.5)
+                                continue
+                            break
+                        if r.status_code != 200:
+                            errors.append(f"{endpoint} HTTP {r.status_code}")
+                            break
+                        try:
+                            data = r.json()
+                            root = data[0] if isinstance(data, list) else data
+                            visitor = (root.get("data") or {}).get("visitorReviews") or {}
+                            raw_items = visitor.get("items") or []
+                            page_items = []
+                            for raw in raw_items:
+                                body = re.sub(r"\s+", " ", html.unescape(str(raw.get("body") or ""))).strip()
+                                if not body:
+                                    continue
+                                rating = raw.get("rating")
+                                try:
+                                    rating = float(rating) if rating is not None else None
+                                except (TypeError, ValueError):
+                                    rating = None
+                                page_items.append(ReviewItem(
+                                    str(raw.get("id") or abs(hash((body, raw.get("created"))))),
+                                    body,
+                                    str(raw.get("created") or raw.get("visited") or "") or None,
+                                    rating,
+                                ))
+                            if page_items or visitor.get("total") == 0:
+                                break
+                            gql_errors = root.get("errors") or []
+                            if gql_errors:
+                                errors.append("GraphQL: " + str(gql_errors[0].get("message", "unknown")))
+                        except (ValueError, KeyError, TypeError) as exc:
+                            errors.append(f"GraphQL 응답 파싱 {type(exc).__name__}")
+                            break
+                    if page_items is not None:
+                        break
+                if page_items is None:
+                    break
+                if not page_items:
+                    if page == 1:
+                        return [], referer
+                    break
+                items.extend(page_items)
+                if len(page_items) < payload[0]["variables"]["input"]["display"]:
+                    break
+                page += 1
+                time.sleep(self.pause)
+            if items:
+                deduped = {x.review_id: x for x in items}
+                return list(deduped.values())[:limit], referer
+        raise CrawlError("방문자리뷰 GraphQL 수집 실패: " + (" | ".join(errors[-4:]) if errors else "응답 없음"))
 
     @staticmethod
     def _balanced_json(text: str, marker: str) -> dict[str, Any] | None:
@@ -110,41 +225,36 @@ class NaverPlaceCrawler:
                 depth -= 1
                 if depth == 0:
                     try:
-                        return json.loads(text[start : pos + 1])
+                        return json.loads(text[start:pos + 1])
                     except json.JSONDecodeError:
                         return None
         return None
 
-    def _fetch_structured_state(self, place_id: str, place_type: str) -> tuple[dict[str, Any], str]:
-        candidates = []
-        for ptype in [place_type, "restaurant", "place"]:
-            if ptype not in candidates:
-                candidates.append(ptype)
-
+    def _apollo_reviews(self, place_id: str, place_type: str, limit: int) -> tuple[list[ReviewItem], str]:
         last_error = ""
-        for ptype in candidates:
+        for ptype in dict.fromkeys([place_type, "restaurant", "place"]):
             url = f"https://m.place.naver.com/{ptype}/{place_id}/review/visitor?reviewSort=recent"
-            r = self.session.get(
-                url,
-                timeout=self.timeout,
-                headers={"Referer": f"https://m.place.naver.com/{ptype}/{place_id}/home"},
-            )
+            r = self.session.get(url, timeout=self.timeout, headers={"Referer": f"https://m.place.naver.com/{ptype}/{place_id}/home"})
             if r.status_code in (403, 429):
-                raise CrawlError(f"네이버 접근 제한 HTTP {r.status_code}")
-            if r.status_code != 200:
-                last_error = f"HTTP {r.status_code}"
+                last_error = f"APOLLO 접근 제한 HTTP {r.status_code}"
                 continue
-            for marker in ("window.__APOLLO_STATE__", "__APOLLO_STATE__"):
-                state = self._balanced_json(r.text, marker)
-                if state:
-                    return state, url
-            last_error = "구조화 리뷰 데이터(APOLLO_STATE)를 찾지 못함"
-            time.sleep(self.pause)
-        raise CrawlError(last_error or "리뷰 페이지를 읽지 못했습니다")
+            if r.status_code != 200:
+                last_error = f"APOLLO HTTP {r.status_code}"
+                continue
+            state = self._balanced_json(r.text, "window.__APOLLO_STATE__") or self._balanced_json(r.text, "__APOLLO_STATE__")
+            if not state:
+                last_error = "APOLLO_STATE 없음"
+                continue
+            reviews = self._walk_reviews(state)
+            deduped = {x.review_id: x for x in reviews}
+            if deduped:
+                return list(deduped.values())[:limit], url
+            last_error = "APOLLO_STATE에 리뷰 본문 객체 없음"
+        raise CrawlError(last_error or "APOLLO 리뷰 폴백 실패")
 
     @staticmethod
     def _pick_text(node: dict[str, Any]) -> str | None:
-        for key in ("body", "reviewBody", "content", "comment", "reviewText", "text"):
+        for key in ("body", "reviewBody", "content", "comment", "reviewText"):
             value = node.get(key)
             if isinstance(value, str):
                 value = re.sub(r"\s+", " ", html.unescape(value)).strip()
@@ -155,18 +265,14 @@ class NaverPlaceCrawler:
     @staticmethod
     def _looks_like_review(path: str, node: dict[str, Any]) -> bool:
         hint = (path + " " + " ".join(map(str, node.keys()))).lower()
-        return "review" in hint and any(
-            k in node for k in ("id", "reviewId", "created", "createdAt", "author", "rating", "starRating")
-        )
+        return "review" in hint and any(k in node for k in ("id", "reviewId", "created", "createdAt", "author", "rating"))
 
     def _walk_reviews(self, obj: Any, path: str = "root") -> list[ReviewItem]:
         found: list[ReviewItem] = []
         if isinstance(obj, dict):
             text = self._pick_text(obj)
             if text and self._looks_like_review(path, obj):
-                rid = str(obj.get("reviewId") or obj.get("id") or "")
-                if not rid:
-                    rid = str(abs(hash(text)))
+                rid = str(obj.get("reviewId") or obj.get("id") or abs(hash(text)))
                 created = obj.get("createdAt") or obj.get("created") or obj.get("visitDate")
                 rating_raw = obj.get("rating") or obj.get("starRating")
                 try:
@@ -184,12 +290,18 @@ class NaverPlaceCrawler:
     def fetch_latest_reviews(self, store_name: str, address: str = "", limit: int = 30) -> tuple[PlaceMatch, list[ReviewItem], str]:
         match = self.resolve_place(store_name, address)
         time.sleep(self.pause)
-        state, review_url = self._fetch_structured_state(match.place_id, match.place_type)
-        reviews = self._walk_reviews(state)
-        deduped: dict[str, ReviewItem] = {}
-        for item in reviews:
-            deduped.setdefault(item.review_id, item)
-        result = list(deduped.values())[:limit]
-        if not result:
-            raise CrawlError("구조화 데이터는 읽었지만 리뷰 본문 객체를 찾지 못했습니다")
-        return match, result, review_url
+        gql_error = None
+        try:
+            reviews, url = self._graphql_reviews(match.place_id, match.place_type, limit)
+            if reviews:
+                return match, reviews, url
+            raise CrawlError("방문자리뷰가 0건이거나 본문 공개 리뷰가 없습니다")
+        except CrawlError as exc:
+            gql_error = str(exc)
+        try:
+            reviews, url = self._apollo_reviews(match.place_id, match.place_type, limit)
+            if reviews:
+                return match, reviews, url
+        except CrawlError as fallback:
+            raise CrawlError(f"GraphQL 실패: {gql_error}; 구조화 폴백 실패: {fallback}") from fallback
+        raise CrawlError(gql_error or "리뷰를 수집하지 못했습니다")
