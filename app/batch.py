@@ -3,10 +3,17 @@ from datetime import datetime, timezone
 
 from app.db import connect, init_db, list_stores
 from app.service import inspect_store
+from app.store_sync import StoreSyncError, sync_official_stores
 
 
 def run_all(limit_per_store: int = 30) -> int:
     init_db()
+    try:
+        synced = sync_official_stores()
+        print(f"STORE_SYNC count={synced['count']}")
+    except StoreSyncError as exc:
+        print(f"STORE_SYNC_FAIL {exc}", file=sys.stderr)
+
     stores = list_stores()
     with connect() as con:
         cur = con.execute("INSERT INTO runs(stores_total) VALUES(?)", (len(stores),))
