@@ -19,4 +19,4 @@ jobs:
           test -n "$JOB_TOKEN"
           curl --fail-with-body --retry 2 --max-time 30 \
             -X POST "${DASHBOARD_URL%/}/api/run-all" \
-            -H "Authorization: Bearer $JOB_TOKEN"
+            -H "X-Job-Token: $JOB_TOKEN"
