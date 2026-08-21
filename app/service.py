@@ -31,7 +31,8 @@ def inspect_store(name: str, address: str = "", limit: int = 30):
         )
         new_count += int(inserted)
         rows.append({
-            "id": review.review_id,
+            "id": None,
+            "external_id": review.review_id,
             "text": review.text,
             "created_at": review.created_at,
             "rating": review.rating,
