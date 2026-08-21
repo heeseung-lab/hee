@@ -1,0 +1,41 @@
+name: collect-latest-reviews
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:00 / 18:00 KST
+    - cron: '0 0,9 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: review-collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Collect latest Naver Place reviews
+        run: python -m app.export_static
+      - name: Save latest snapshot
+        run: |
+          if git diff --quiet -- site/data/reviews.json; then
+            echo "No data changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- site/data/reviews.json
+          git commit -m "data: refresh review snapshot"
+          git push origin HEAD:main
