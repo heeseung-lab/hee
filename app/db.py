@@ -47,6 +47,15 @@ CREATE TABLE IF NOT EXISTS runs (
   new_reviews INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'running'
 );
+CREATE TABLE IF NOT EXISTS review_actions (
+  review_id INTEGER PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'open',
+  memo TEXT NOT NULL DEFAULT '',
+  assignee TEXT NOT NULL DEFAULT '',
+  updated_by TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(review_id) REFERENCES reviews(id) ON DELETE CASCADE
+);
 """
 
 DEFAULT_BAD = ["불친절", "맛없", "별로", "최악", "위생", "더럽", "머리카락", "늦", "오래 걸", "짜증", "불쾌", "실망", "비싸"]
@@ -95,6 +104,20 @@ def replace_keywords(kind: str, words: list[str]):
         con.commit()
 
 
+def reanalyze_all(analyzer):
+    keys = get_keywords()
+    with connect() as con:
+        rows = con.execute("SELECT id, body FROM reviews").fetchall()
+        for row in rows:
+            result = analyzer(row["body"], keys["bad"], keys["good"])
+            con.execute(
+                "UPDATE reviews SET bad_hits=?, good_hits=?, score=?, level=? WHERE id=?",
+                (",".join(result.bad_hits), ",".join(result.good_hits), result.score, result.level, row["id"]),
+            )
+        con.commit()
+    return len(rows)
+
+
 def upsert_store(name: str, address: str = "") -> int:
     with connect() as con:
         con.execute("INSERT OR IGNORE INTO stores(name, address) VALUES(?, ?)", (name, address))
@@ -109,10 +132,13 @@ def list_stores():
           SELECT s.*,
                  COUNT(r.id) AS review_count,
                  SUM(CASE WHEN r.bad_hits <> '' THEN 1 ELSE 0 END) AS bad_review_count,
+                 SUM(CASE WHEN r.bad_hits <> '' AND COALESCE(a.status,'open') <> 'done' THEN 1 ELSE 0 END) AS open_bad_count,
                  COALESCE(MAX(r.score), 0) AS max_score
-          FROM stores s LEFT JOIN reviews r ON r.store_id=s.id
+          FROM stores s
+          LEFT JOIN reviews r ON r.store_id=s.id
+          LEFT JOIN review_actions a ON a.review_id=r.id
           GROUP BY s.id
-          ORDER BY max_score DESC, bad_review_count DESC, s.name
+          ORDER BY open_bad_count DESC, max_score DESC, bad_review_count DESC, s.name
         """).fetchall()]
 
 
@@ -138,11 +164,36 @@ def update_store_result(store_id: int, status: str, error: str | None, place_id:
 def recent_reviews(limit: int = 100):
     with connect() as con:
         rows = con.execute("""
-          SELECT r.*, s.name AS store_name, s.address AS store_address
-          FROM reviews r JOIN stores s ON s.id=r.store_id
-          ORDER BY r.collected_at DESC, r.id DESC LIMIT ?
+          SELECT r.*, s.name AS store_name, s.address AS store_address,
+                 COALESCE(a.status,'open') AS action_status,
+                 COALESCE(a.memo,'') AS action_memo,
+                 COALESCE(a.assignee,'') AS assignee,
+                 COALESCE(a.updated_by,'') AS action_updated_by,
+                 a.updated_at AS action_updated_at
+          FROM reviews r
+          JOIN stores s ON s.id=r.store_id
+          LEFT JOIN review_actions a ON a.review_id=r.id
+          ORDER BY CASE WHEN r.bad_hits <> '' AND COALESCE(a.status,'open') <> 'done' THEN 0 ELSE 1 END,
+                   r.score DESC, r.collected_at DESC, r.id DESC LIMIT ?
         """, (limit,)).fetchall()
     return [dict(r) for r in rows]
+
+
+def set_review_action(review_id: int, status: str, memo: str, assignee: str, updated_by: str):
+    if status not in {"open", "in_progress", "done"}:
+        raise ValueError("invalid status")
+    with connect() as con:
+        exists = con.execute("SELECT id FROM reviews WHERE id=?", (review_id,)).fetchone()
+        if not exists:
+            raise KeyError("review not found")
+        con.execute("""
+          INSERT INTO review_actions(review_id,status,memo,assignee,updated_by,updated_at)
+          VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(review_id) DO UPDATE SET
+            status=excluded.status, memo=excluded.memo, assignee=excluded.assignee,
+            updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP
+        """, (review_id, status, memo.strip(), assignee.strip(), updated_by))
+        con.commit()
 
 
 def dashboard_summary():
@@ -152,6 +203,7 @@ def dashboard_summary():
             (SELECT COUNT(*) FROM stores) AS stores,
             (SELECT COUNT(*) FROM reviews) AS reviews,
             (SELECT COUNT(*) FROM reviews WHERE bad_hits <> '') AS bad_reviews,
+            (SELECT COUNT(*) FROM reviews r LEFT JOIN review_actions a ON a.review_id=r.id WHERE r.bad_hits <> '' AND COALESCE(a.status,'open') <> 'done') AS open_bad_reviews,
             (SELECT COUNT(DISTINCT store_id) FROM reviews WHERE level='집중관리') AS critical_stores,
             (SELECT COUNT(DISTINCT store_id) FROM reviews WHERE level='주의') AS warning_stores
         """).fetchone()
