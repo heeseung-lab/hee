@@ -35,8 +35,8 @@ def inspect_store(name: str, address: str = "", limit: int = 30):
             "text": review.text,
             "created_at": review.created_at,
             "rating": review.rating,
-            "bad_hits": analysis.bad_hits,
-            "good_hits": analysis.good_hits,
+            "bad_hits": ",".join(analysis.bad_hits),
+            "good_hits": ",".join(analysis.good_hits),
             "score": analysis.score,
             "level": analysis.level,
         })
