@@ -5,11 +5,7 @@ on:
     branches: [main]
     paths:
       - 'site/**'
-      - 'app/export_static.py'
-      - 'app/naver_crawler.py'
-      - 'app/store_sync.py'
       - '.github/workflows/pages.yml'
-      - '.github/workflows/collect-static.yml'
   workflow_dispatch:
 
 permissions:
@@ -22,21 +18,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Sync official store master only
-        run: python -m app.export_static --stores-only
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload dashboard
