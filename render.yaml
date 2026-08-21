@@ -9,8 +9,16 @@ services:
     envVars:
       - key: DATABASE_PATH
         value: /var/data/reviews.db
+      - key: SECRET_KEY
+        generateValue: true
       - key: JOB_TOKEN
         generateValue: true
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"
     disk:
       name: review-data
       mountPath: /var/data
