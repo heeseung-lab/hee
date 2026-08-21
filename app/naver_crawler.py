@@ -46,13 +46,7 @@ class ReviewItem:
 
 
 class NaverPlaceCrawler:
-    """네이버 공개 플레이스에서 구조화된 방문자리뷰만 수집한다.
-
-    1) 매장명+주소로 플레이스를 찾고
-    2) 방문자리뷰 GraphQL을 최신순으로 호출하며
-    3) GraphQL이 구조 변경/차단될 경우 APOLLO_STATE 구조화 데이터로만 폴백한다.
-    임의의 화면 텍스트는 리뷰로 저장하지 않는다.
-    """
+    """네이버 공개 플레이스에서 구조화된 방문자리뷰만 수집한다."""
 
     def __init__(self, timeout: int = 15, pause: float = 0.8):
         self.timeout = timeout
@@ -113,23 +107,23 @@ class NaverPlaceCrawler:
             page = 1
             items: list[ReviewItem] = []
             while len(items) < limit and page <= 3:
+                page_size = min(50, max(1, limit - len(items)))
                 payload = [{
                     "operationName": "getVisitorReviews",
                     "variables": {"input": {
                         "businessId": place_id,
                         "businessType": business_type,
-                        "display": min(20, max(1, limit - len(items))),
                         "page": page,
-                        "sort": "recent",
-                        "getAuthorInfo": True,
-                        "includeContent": True,
-                        "includeReceiptPhotos": True,
+                        "size": page_size,
                         "isPhotoUsed": False,
+                        "includeContent": True,
+                        "getAuthorInfo": True,
                         "item": "0",
                     }},
                     "query": GRAPHQL_QUERY,
                 }]
                 page_items = None
+                visitor_total = None
                 for endpoint in endpoints:
                     for attempt in range(3):
                         try:
@@ -150,6 +144,7 @@ class NaverPlaceCrawler:
                             data = r.json()
                             root = data[0] if isinstance(data, list) else data
                             visitor = (root.get("data") or {}).get("visitorReviews") or {}
+                            visitor_total = visitor.get("total")
                             raw_items = visitor.get("items") or []
                             page_items = []
                             for raw in raw_items:
@@ -167,7 +162,7 @@ class NaverPlaceCrawler:
                                     str(raw.get("created") or raw.get("visited") or "") or None,
                                     rating,
                                 ))
-                            if page_items or visitor.get("total") == 0:
+                            if page_items or visitor_total == 0:
                                 break
                             gql_errors = root.get("errors") or []
                             if gql_errors:
@@ -180,11 +175,11 @@ class NaverPlaceCrawler:
                 if page_items is None:
                     break
                 if not page_items:
-                    if page == 1:
+                    if page == 1 and visitor_total == 0:
                         return [], referer
                     break
                 items.extend(page_items)
-                if len(page_items) < payload[0]["variables"]["input"]["display"]:
+                if len(items) >= limit or len(page_items) < page_size:
                     break
                 page += 1
                 time.sleep(self.pause)
