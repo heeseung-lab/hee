@@ -1,0 +1,49 @@
+name: free-review-dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:00 / 18:00 KST
+    - cron: '0 0,9 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'app/export_static.py'
+      - 'app/naver_crawler.py'
+      - 'app/store_sync.py'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Collect latest reviews
+        run: python -m app.export_static
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload dashboard
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
