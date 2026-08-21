@@ -1,13 +1,16 @@
 import argparse
 import json
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.naver_crawler import NaverPlaceCrawler
 from app.store_sync import StoreSyncError, _parse_page
 
 OUT = Path("site/data/reviews.json")
 STORES_URL = "https://youngdabang.com/board/index.php?board=map_01"
+KST = ZoneInfo("Asia/Seoul")
 
 
 def fetch_store_list(session):
@@ -35,6 +38,38 @@ def previous_map(payload):
     }
 
 
+def _review_date(value):
+    if not value:
+        return None
+    s = str(value).strip()
+    today = datetime.now(KST).date()
+    if "오늘" in s or re.search(r"\d+시간 전|\d+분 전", s):
+        return today
+    if "어제" in s:
+        return today - timedelta(days=1)
+    m = re.search(r"(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})", s)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=KST).date()
+        except ValueError:
+            return None
+    m = re.search(r"(\d{1,2})일 전", s)
+    if m:
+        return today - timedelta(days=int(m.group(1)))
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=KST)
+        return dt.astimezone(KST).date()
+    except Exception:
+        return None
+
+
+def _filter_recent(reviews, days=2):
+    start = datetime.now(KST).date() - timedelta(days=days - 1)
+    return [r for r in reviews if (_review_date(r.get("created_at")) or datetime.min.date()) >= start]
+
+
 def build_store_master(stores, previous):
     old = previous_map(previous)
     rows = []
@@ -45,7 +80,7 @@ def build_store_master(stores, previous):
             "address": address,
             "place_id": prior.get("place_id"),
             "review_url": prior.get("review_url"),
-            "reviews": prior.get("reviews", []),
+            "reviews": _filter_recent(prior.get("reviews", []), days=2),
             "error": prior.get("error"),
         })
     return rows
@@ -57,10 +92,12 @@ def write_payload(rows, generated_at, store_synced_at):
         for row in rows
         if row.get("error")
     ]
-    ok = sum(1 for row in rows if row.get("reviews"))
+    ok = sum(1 for row in rows if not row.get("error"))
     payload = {
         "generated_at": generated_at,
         "store_synced_at": store_synced_at,
+        "window_days": 2,
+        "window_label": "전일+당일",
         "stores_total": len(rows),
         "stores_ok": ok,
         "stores_failed": len(failed),
@@ -89,24 +126,20 @@ def main(stores_only=False):
         address = row["address"]
         full_name = name if "청년다방" in name else f"청년다방 {name}"
         try:
-            match, reviews, review_url = crawler.fetch_latest_reviews(full_name, address, limit=20)
+            match, reviews, review_url = crawler.fetch_latest_reviews(full_name, address, limit=50)
+            filtered = _filter_recent([
+                {"id": r.review_id, "text": r.text, "created_at": r.created_at, "rating": r.rating}
+                for r in reviews
+            ], days=2)
             row.update({
                 "place_id": match.place_id,
                 "review_url": review_url,
-                "reviews": [
-                    {
-                        "id": r.review_id,
-                        "text": r.text,
-                        "created_at": r.created_at,
-                        "rating": r.rating,
-                    }
-                    for r in reviews
-                ],
+                "reviews": filtered,
                 "error": None,
             })
         except Exception as exc:
-            # Keep the last successful reviews visible even when a transient crawl fails.
             row["error"] = f"{type(exc).__name__}: {exc}"
+            row["reviews"] = _filter_recent(row.get("reviews", []), days=2)
 
     payload = write_payload(rows, now, now)
     print(
