@@ -27,13 +27,14 @@ def _parse_page(html: str) -> list[tuple[str, str]]:
     # 공식 목록은 각 매장 블록에 매장명/주소/전화번호를 함께 노출한다.
     # 클래스명이 바뀌어도 전화번호가 포함된 가까운 블록을 기준으로 복구한다.
     for text_node in soup.find_all(string=PHONE_RE):
-        parent = text_node.parent
-        block = parent
-        for _ in range(5):
+        block = text_node.parent
+        for _ in range(7):
             if not block:
                 break
-            text = _clean(block.get_text("\n", strip=True))
-            if PHONE_RE.search(text) and 10 < len(text) < 700:
+            lines = [_clean(x) for x in block.get_text("\n", strip=True).splitlines() if _clean(x)]
+            phone_idx = next((i for i, line in enumerate(lines) if PHONE_RE.search(line)), None)
+            # 전화번호 앞에 최소 매장명과 주소 두 줄이 있어야 완전한 매장 블록이다.
+            if phone_idx is not None and phone_idx >= 2 and len(_clean(block.get_text(" ", strip=True))) < 900:
                 break
             block = block.parent
         if not block:
