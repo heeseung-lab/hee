@@ -1,0 +1,28 @@
+name: collect-reviews
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions cron is UTC. 00:00 / 09:00 UTC = 09:00 / 18:00 KST.
+    - cron: '0 0,9 * * *'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Run collector
+        run: python -m app.batch
+      - name: Upload database snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-db-${{ github.run_id }}
+          path: data/reviews.db
+          if-no-files-found: ignore
+          retention-days: 14
