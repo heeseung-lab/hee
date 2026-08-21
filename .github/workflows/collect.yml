@@ -1,0 +1,22 @@
+name: collect-reviews
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions cron is UTC. 00:00 / 09:00 UTC = 09:00 / 18:00 KST.
+    - cron: '0 0,9 * * *'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger central collector
+        env:
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+          JOB_TOKEN: ${{ secrets.JOB_TOKEN }}
+        run: |
+          test -n "$DASHBOARD_URL"
+          test -n "$JOB_TOKEN"
+          curl --fail-with-body --retry 2 --max-time 30 \
+            -X POST "${DASHBOARD_URL%/}/api/run-all" \
+            -H "X-Job-Token: $JOB_TOKEN"
