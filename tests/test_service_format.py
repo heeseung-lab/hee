@@ -11,7 +11,7 @@ class FakeCrawler:
         )
 
 
-def test_service_returns_dashboard_safe_keyword_strings(monkeypatch, tmp_path):
+def test_service_returns_dashboard_safe_keyword_strings(monkeypatch):
     monkeypatch.setattr(service, "crawler", FakeCrawler())
     result = service.inspect_store("청년다방 테스트점", "서울 테스트로 1", limit=5)
     row = result["reviews"][0]
