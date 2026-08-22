@@ -12,18 +12,26 @@ on:
         required: true
         default: '7'
         type: string
+  push:
+    branches: [main]
+    paths:
+      - 'app/brand_export.py'
+      - '.github/workflows/brand-search.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: brand-search-${{ github.event.inputs.brand }}
+  group: brand-search-${{ github.event.inputs.brand || 'seed-brand' }}
   cancel-in-progress: false
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      BRAND: ${{ github.event.inputs.brand || '한마음정육식당' }}
+      DAYS: ${{ github.event.inputs.days || '7' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Discover stores from Naver Map and collect reviews
-        run: python -m app.brand_export --brand "${{ github.event.inputs.brand }}" --days "${{ github.event.inputs.days }}"
+        run: python -m app.brand_export --brand "$BRAND" --days "$DAYS"
       - name: Save brand snapshot
         run: |
           git config user.name "github-actions[bot]"
@@ -44,6 +52,6 @@ jobs:
             echo "No data changes"
             exit 0
           fi
-          git commit -m "data: refresh brand ${{ github.event.inputs.brand }}"
+          git commit -m "data: refresh brand $BRAND"
           git pull --rebase origin main
           git push origin HEAD:main
