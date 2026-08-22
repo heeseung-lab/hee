@@ -2,6 +2,15 @@ name: auto-monitor-all-brands
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/auto-monitor.yml'
+      - 'site/data/brands/registry.json'
+      - 'app/brand_export.py'
+      - 'app/refresh_all_brands.py'
+      - 'app/naver_crawler.py'
+      - 'app/export_static.py'
   schedule:
     # 09:00 / 18:00 KST
     - cron: '0 0,9 * * *'
