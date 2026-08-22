@@ -35,7 +35,7 @@ def options(_):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.1"})
+    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.2"})
 
 
 @app.post("/api/search")
@@ -47,7 +47,7 @@ def search_brand():
     try:
         crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
         stores = discover_stores(crawler, brand)
-        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores, "source": "naver-map-json"})
+        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores, "source": "naver-map-or-search-fallback"})
     except Exception as exc:
         return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 502
 
@@ -58,6 +58,7 @@ def check_store():
     name = str(body.get("name", "")).strip()
     address = str(body.get("address", "")).strip()
     place_id = str(body.get("place_id", "")).strip()
+    place_type = str(body.get("place_type", "restaurant") or "restaurant").strip()
     days = max(1, min(30, int(body.get("days", 7) or 7)))
     if len(name) < 2:
         return jsonify({"ok": False, "error": "매장명이 필요합니다"}), 400
@@ -65,9 +66,9 @@ def check_store():
         crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
         if place_id.isdigit():
             try:
-                reviews, review_url = crawler._graphql_reviews(place_id, "restaurant", 50)
+                reviews, review_url = crawler._graphql_reviews(place_id, place_type, 50)
             except Exception:
-                reviews, review_url = crawler._apollo_reviews(place_id, "restaurant", 50)
+                reviews, review_url = crawler._apollo_reviews(place_id, place_type, 50)
             resolved_place_id = place_id
         else:
             match, reviews, review_url = crawler.fetch_latest_reviews(name, address, limit=50)
