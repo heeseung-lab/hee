@@ -35,7 +35,7 @@ def options(_):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.0"})
+    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.1"})
 
 
 @app.post("/api/search")
@@ -45,9 +45,9 @@ def search_brand():
     if len(brand) < 2:
         return jsonify({"ok": False, "error": "브랜드명을 2글자 이상 입력하세요"}), 400
     try:
-        crawler = NaverPlaceCrawler(timeout=18, pause=0.25)
+        crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
         stores = discover_stores(crawler, brand)
-        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores})
+        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores, "source": "naver-map-json"})
     except Exception as exc:
         return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 502
 
@@ -57,12 +57,21 @@ def check_store():
     body = request.get_json(silent=True) or {}
     name = str(body.get("name", "")).strip()
     address = str(body.get("address", "")).strip()
+    place_id = str(body.get("place_id", "")).strip()
     days = max(1, min(30, int(body.get("days", 7) or 7)))
     if len(name) < 2:
         return jsonify({"ok": False, "error": "매장명이 필요합니다"}), 400
     try:
-        crawler = NaverPlaceCrawler(timeout=18, pause=0.25)
-        match, reviews, review_url = crawler.fetch_latest_reviews(name, address, limit=50)
+        crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
+        if place_id.isdigit():
+            try:
+                reviews, review_url = crawler._graphql_reviews(place_id, "restaurant", 50)
+            except Exception:
+                reviews, review_url = crawler._apollo_reviews(place_id, "restaurant", 50)
+            resolved_place_id = place_id
+        else:
+            match, reviews, review_url = crawler.fetch_latest_reviews(name, address, limit=50)
+            resolved_place_id = match.place_id
         rows = recent([
             {"id": r.review_id, "text": r.text, "created_at": r.created_at, "rating": r.rating}
             for r in reviews
@@ -70,23 +79,8 @@ def check_store():
         analyzed = []
         for row in rows:
             a = analyze_review(row.get("text", ""))
-            analyzed.append({
-                **row,
-                "bad_hits": a.bad_hits,
-                "good_hits": a.good_hits,
-                "score": a.score,
-                "level": a.level,
-            })
-        return jsonify({
-            "ok": True,
-            "name": name,
-            "address": address,
-            "place_id": match.place_id,
-            "review_url": review_url,
-            "days": days,
-            "count": len(analyzed),
-            "reviews": analyzed,
-        })
+            analyzed.append({**row, "bad_hits": a.bad_hits, "good_hits": a.good_hits, "score": a.score, "level": a.level})
+        return jsonify({"ok": True, "name": name, "address": address, "place_id": resolved_place_id, "review_url": review_url, "days": days, "count": len(analyzed), "reviews": analyzed})
     except Exception as exc:
         return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 502
 
