@@ -1,0 +1,20 @@
+{
+  "brand": "한마음정육식당",
+  "generated_at": "2026-08-22T23:54:06.941178+00:00",
+  "window_days": 7,
+  "window_label": "최근 7일",
+  "stores_total": 1,
+  "stores_ok": 1,
+  "stores_failed": 0,
+  "stores": [
+    {
+      "name": "한마음정육식당",
+      "address": "서울 강남",
+      "place_id": "1619047366",
+      "place_type": "restaurant",
+      "reviews": [],
+      "error": null,
+      "review_url": "https://m.place.naver.com/restaurant/1619047366/review/visitor"
+    }
+  ]
+}

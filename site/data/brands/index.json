@@ -1,3 +1,13 @@
 {
-  "brands": []
+  "brands": [
+    {
+      "name": "한마음정육식당",
+      "slug": "한마음정육식당",
+      "generated_at": "2026-08-22T23:54:06.941178+00:00",
+      "stores_total": 1,
+      "stores_ok": 1,
+      "stores_failed": 0,
+      "window_days": 7
+    }
+  ]
 }
