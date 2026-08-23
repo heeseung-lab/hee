@@ -297,18 +297,16 @@ def search_naver_map_listing(crawler: NaverPlaceCrawler, brand: str):
     found = {}
     query = brand.strip()
     for row in _map_search_page(crawler, query, brand):
-        merge_store(found, enrich_place_row(crawler, row, brand), brand)
+        merge_store(found, row, brand)
     for row in _api_search(crawler, query, brand, REGIONS['서울']):
-        merge_store(found, enrich_place_row(crawler, row, brand), brand)
+        merge_store(found, row, brand)
     try:
         match = crawler.resolve_place(query)
         detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
-        home_name, home_address = place_home_details(crawler, match.place_id, match.place_type or "restaurant", brand)
         name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
-        name = better_place_name(name, home_name, brand)
         merge_store(found, {
             "name": name,
-            "address": getattr(match, "address", None) or detail_address or home_address or "",
+            "address": getattr(match, "address", None) or detail_address or "",
             "place_id": match.place_id,
             "place_type": match.place_type or "restaurant",
         }, brand)
@@ -361,7 +359,7 @@ def _api_search(crawler: NaverPlaceCrawler, query: str, brand: str, coord):
 
 def _coord_for_area(area: str):
     prefix = area.split()[0]
-    return REGIONS.get(prefix, REGIONS["서울"])
+    return REGIONS.get(prefix, REGIONS["\uC11C\uC6B8"])
 
 
 def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
@@ -371,13 +369,12 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
     found = {}
     for row in _api_search(crawler, query, brand, _coord_for_area(area)):
         merge_store(found, row, brand)
-    # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
+    # Keep discovery fast: defer per-place home-page checks to the review step.
     try:
         match = crawler.resolve_place(query)
         detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
-        home_name, home_address = place_home_details(crawler, match.place_id, match.place_type or "restaurant", brand)
-        candidate_name = getattr(match, "name", None) or detail_name or home_name
-        candidate_address = getattr(match, "address", None) or detail_address or home_address
+        candidate_name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
+        candidate_address = getattr(match, "address", None) or detail_address or area
         fallback_row = {
             "name": clean_place_name(candidate_name or brand),
             "address": clean_place_name(candidate_address or area),
