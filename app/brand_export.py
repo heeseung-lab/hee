@@ -84,6 +84,52 @@ def clean_place_name(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def is_generic_place_name(name: str, brand: str) -> bool:
+    return clean_place_name(name) == clean_place_name(brand)
+
+
+def better_place_name(current: str, candidate: str | None, brand: str) -> str:
+    current = clean_place_name(current or brand)
+    candidate = clean_place_name(candidate or "")
+    if candidate and brand.lower() in candidate.lower() and (is_generic_place_name(current, brand) or len(candidate) > len(current)):
+        return candidate
+    return current
+
+
+def place_home_details(crawler: NaverPlaceCrawler, place_id: str, place_type: str, brand: str):
+    names = []
+    address = None
+    for ptype in dict.fromkeys([place_type or "restaurant", "restaurant", "place", "cafe"]):
+        url = f"https://m.place.naver.com/{ptype}/{place_id}/home"
+        try:
+            r = crawler.session.get(url, timeout=crawler.timeout, headers={"Referer": "https://m.place.naver.com/"})
+        except Exception:
+            continue
+        if r.status_code != 200:
+            continue
+        body = decode_js(r.text)
+        for pattern in [
+            r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
+            r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
+            r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
+            r'"title"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
+        ]:
+            for match in re.finditer(pattern, body):
+                name = clean_place_name(match.group(1).split(":")[0])
+                if brand.lower() in name.lower() and name not in names:
+                    names.append(name)
+        for pattern in [r'"(?:roadAddress|address|jibunAddress)"\s*:\s*"([^"]+)"']:
+            match = re.search(pattern, body)
+            if match:
+                address = clean_place_name(match.group(1))
+                break
+        if names or address:
+            break
+    names.sort(key=lambda x: (x == brand, -len(x)))
+    return (names[0] if names else None), address
+
+
 def search_result_place_details(crawler: NaverPlaceCrawler, query: str, brand: str, place_id: str):
     url = f"https://search.naver.com/search.naver?query={quote(query)}"
     try:
@@ -155,7 +201,11 @@ def extract_map_rows(text: str, brand: str):
 
 def _walk_place_rows(obj, brand: str, out: dict):
     if isinstance(obj, dict):
-        name = obj.get("name") or obj.get("businessName") or obj.get("title")
+        raw_name = obj.get("name") or obj.get("businessName") or obj.get("title") or obj.get("displayName")
+        if isinstance(raw_name, dict):
+            name = raw_name.get("text") or raw_name.get("name") or raw_name.get("title")
+        else:
+            name = raw_name
         pid = obj.get("id") or obj.get("placeId") or obj.get("businessId")
         if isinstance(name, str) and brand.lower() in html.unescape(name).lower() and str(pid or "").isdigit():
             address = obj.get("roadAddress") or obj.get("address") or obj.get("jibunAddress") or ""
@@ -200,16 +250,28 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
     found = {}
     for row in _api_search(crawler, query, brand, _coord_for_area(area)):
         found[row["place_id"]] = row
-    # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
+    # 지도 API 결과 유무와 상관없이 통합검색/장소 홈을 확인해 지점명이 빠진 항목을 보강한다.
     try:
         match = crawler.resolve_place(query)
         detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
-        found.setdefault(match.place_id, {
-            "name": clean_place_name(getattr(match, "name", None) or detail_name or brand),
-            "address": clean_place_name(getattr(match, "address", None) or detail_address or area),
+        home_name, home_address = place_home_details(crawler, match.place_id, match.place_type or "restaurant", brand)
+        candidate_name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
+        candidate_name = better_place_name(candidate_name, home_name, brand)
+        candidate_address = getattr(match, "address", None) or detail_address or home_address
+        fallback_row = {
+            "name": clean_place_name(candidate_name or brand),
+            "address": clean_place_name(candidate_address or area),
             "place_id": match.place_id,
             "place_type": match.place_type or "restaurant",
-        })
+        }
+        current = found.get(match.place_id)
+        if current:
+            current["name"] = better_place_name(current.get("name"), fallback_row["name"], brand)
+            if not current.get("address") or current.get("address") == area:
+                current["address"] = fallback_row["address"]
+            current["place_type"] = current.get("place_type") or fallback_row["place_type"]
+        else:
+            found[match.place_id] = fallback_row
     except Exception:
         pass
     return list(found.values())
