@@ -64,10 +64,27 @@ def clean_address(value: str) -> str:
     return clean_place_name(value)
 
 
+def normalize_brand(value: str) -> str:
+    return re.sub(r"[^0-9a-zA-Z\uac00-\ud7a3]+", "", clean_place_name(value)).lower()
+
+
+def brand_matches(name: str, brand: str) -> bool:
+    name_key = normalize_brand(name)
+    brand_key = normalize_brand(brand)
+    if not name_key or not brand_key:
+        return False
+    if brand_key in name_key:
+        return True
+    variants = {brand_key}
+    variants.add(brand_key.replace("솥", "솔"))
+    variants.add(brand_key.replace("솔", "솥"))
+    return any(candidate and candidate in name_key for candidate in variants)
+
+
 def better_place_name(current: str | None, candidate: str | None, brand: str) -> str:
     current = clean_place_name(current or brand)
     candidate = clean_place_name(candidate or "")
-    if candidate and brand.lower() in candidate.lower() and (current == brand or len(candidate) > len(current)):
+    if candidate and brand_matches(candidate, brand) and (current == brand or len(candidate) > len(current)):
         return candidate
     return current
 
@@ -122,7 +139,7 @@ def extract_map_rows(text: str, brand: str):
         if place_id in seen:
             continue
         block = text[max(0, match.start() - 1800): min(len(text), match.start() + 2800)]
-        if brand.lower() not in block.lower():
+        if not brand_matches(block, brand):
             continue
         names = []
         for pattern in [
@@ -132,7 +149,7 @@ def extract_map_rows(text: str, brand: str):
         ]:
             for item in re.finditer(pattern, block):
                 name = clean_place_name(item.group(1))
-                if brand.lower() in name.lower() and name not in names:
+                if brand_matches(name, brand) and name not in names:
                     names.append(name)
         names.sort(key=lambda value: (value == brand, -len(value)))
         address = ""
@@ -146,12 +163,72 @@ def extract_map_rows(text: str, brand: str):
     return rows
 
 
+def _balanced_json_after(text: str, marker: str):
+    idx = text.find(marker)
+    if idx < 0:
+        return None
+    eq = text.find("=", idx)
+    start = text.find("{", eq if eq >= 0 else idx)
+    if start < 0:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    quote_ch = ""
+    for pos in range(start, len(text)):
+        ch = text[pos]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == quote_ch:
+                in_str = False
+            continue
+        if ch in ("'", '"'):
+            in_str = True
+            quote_ch = ch
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(text[start:pos + 1])
+                except ValueError:
+                    return None
+    return None
+
+
+def _apollo_place_rows(text: str, brand: str):
+    state = _balanced_json_after(text, "__APOLLO_STATE__")
+    if not isinstance(state, dict):
+        return []
+    rows = []
+    for obj in state.values():
+        if not isinstance(obj, dict):
+            continue
+        place_id = str(obj.get("id") or "")
+        name = clean_place_name(obj.get("name") or obj.get("normalizedName") or "")
+        if not place_id.isdigit() or not brand_matches(name, brand):
+            continue
+        address = obj.get("fullAddress") or obj.get("roadAddress") or obj.get("commonAddress") or obj.get("address") or ""
+        rows.append({
+            "name": name,
+            "address": clean_address(address),
+            "place_id": place_id,
+            "place_type": "restaurant",
+            "source": "pcmap-apollo",
+        })
+    return rows
+
+
 def _walk_place_rows(obj, brand: str, out: dict):
     if isinstance(obj, dict):
         raw_name = obj.get("name") or obj.get("businessName") or obj.get("title") or obj.get("displayName")
         name = raw_name.get("text") if isinstance(raw_name, dict) else raw_name
-        place_id = obj.get("id") or obj.get("placeId") or obj.get("businessId")
-        if isinstance(name, str) and brand.lower() in html.unescape(name).lower() and str(place_id or "").isdigit():
+        place_id = obj.get("id") or obj.get("placeId") or obj.get("businessId") or obj.get("entryId")
+        if isinstance(name, str) and brand_matches(name, brand) and str(place_id or "").isdigit():
             address = obj.get("roadAddress") or obj.get("address") or obj.get("jibunAddress") or ""
             out[str(place_id)] = {
                 "name": clean_place_name(name),
@@ -196,6 +273,50 @@ def _api_search(crawler: NaverPlaceCrawler, brand: str, coord):
     return list(found.values())
 
 
+def _pcmap_list_search(crawler: NaverPlaceCrawler, brand: str, coord):
+    lon, lat = coord
+    found = {}
+    headers = {
+        "Referer": f"https://map.naver.com/p/search/{quote(brand)}",
+        "Accept": "text/html,application/json,application/xhtml+xml,*/*",
+        "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.7",
+        "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0"),
+    }
+    for start in (1, 71):
+        try:
+            response = crawler.session.get(
+                "https://pcmap.place.naver.com/place/list",
+                params={
+                    "query": brand,
+                    "x": str(lon),
+                    "y": str(lat),
+                    "display": "70",
+                    "start": str(start),
+                    "adult": "false",
+                    "spq": "false",
+                    "deviceType": "pcmap",
+                },
+                timeout=crawler.timeout,
+                headers=headers,
+            )
+        except Exception:
+            continue
+        if response.status_code != 200:
+            continue
+        response.encoding = "utf-8"
+        text = decode_js(response.text)
+        rows = _apollo_place_rows(text, brand)
+        if not rows:
+            rows = extract_map_rows(text, brand)
+        before = len(found)
+        for row in rows:
+            found[row["place_id"]] = row
+        if len(found) == before or len(rows) < 60:
+            break
+        time.sleep(0.08)
+    return list(found.values())
+
+
 def _map_page_search(crawler: NaverPlaceCrawler, brand: str):
     url = f"https://map.naver.com/p/search/{quote(brand)}"
     headers = {"Referer": "https://map.naver.com/", "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0")}
@@ -210,10 +331,16 @@ def _map_page_search(crawler: NaverPlaceCrawler, brand: str):
 
 
 def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
+    found = {}
     if area == NAVER_MAP_AREA:
-        return _map_page_search(crawler, brand)
-    coord = next(((lon, lat) for name, lon, lat in REGION_COORDS if name == area), (126.9780, 37.5665))
-    return _api_search(crawler, brand, coord)
+        rows = _map_page_search(crawler, brand)
+        coord = (126.9780, 37.5665)
+    else:
+        rows = []
+        coord = next(((lon, lat) for name, lon, lat in REGION_COORDS if name == area), (126.9780, 37.5665))
+    for row in rows + _pcmap_list_search(crawler, brand, coord) + _api_search(crawler, brand, coord):
+        found[row["place_id"]] = row
+    return list(found.values())
 
 
 def search_brand_places(brand: str, concurrency: int = 4):
