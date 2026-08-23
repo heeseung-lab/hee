@@ -1,155 +1,20 @@
 {
   "brand": "한마음정육식당",
-  "generated_at": "2026-08-23T01:05:36.678154+00:00",
+  "generated_at": "2026-08-23T01:14:21.622725+00:00",
   "window_days": 7,
   "window_label": "최근 7일",
-  "stores_total": 16,
-  "stores_ok": 16,
+  "stores_total": 1,
+  "stores_ok": 1,
   "stores_failed": 0,
   "stores": [
     {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ê´ëª ì ì¤ë¦¬ë¡619ë²ê¸¸ 17 íë§ìì ì¡ìë¹ ê´ëª ì ",
-      "place_id": "1428606878",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1428606878/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ë¨ìì£¼ì ìíê¶ë¡ 116 2ì¸µ 204, 205, 206í¸",
-      "place_id": "1747608515",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1747608515/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ì±ë¨ì ë¶ë¹êµ¬ ëìíêµë¡ 660 107í¸, 108í¸, 109í¸, 110í¸",
-      "place_id": "1252363902",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1252363902/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ììì ìíµêµ¬ ë´ìë¡1482ë²ê¸¸ 7-1",
-      "place_id": "1652040229",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1652040229/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ì©ì¸ì ê¸°í¥êµ¬ í¥ëì¤ìë¡ 41 203í¸, 204í¸, 205í¸",
-      "place_id": "1831649609",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1831649609/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° ìì ë¶ì ì¥ê³¡ë¡ 54 2ì¸µ",
-      "place_id": "1789236001",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1789236001/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° íì£¼ì ìë¦¬ì²ë¡8ë²ê¸¸ 70 2ì¸µ",
-      "place_id": "1336947770",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1336947770/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° íë¨ì ê°ì¼ë°±ì ë¡ 169 2ì¸µ 203~206í¸",
-      "place_id": "1956574009",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1956574009/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ê²½ê¸° íì±ì ëíêµ¬ ë ¸ìë¡ 203 ìí´ëë¸ë£¨íì¤ 1ì¸µ 107í¸",
-      "place_id": "1641989957",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1641989957/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ê´ì êµ¬ ì ì¬ë¡ 104-1",
-      "place_id": "1552120407",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1552120407/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ê´ì§êµ¬ êµ¬ìê°ë³ë¡ 49 1ì¸µ",
+      "name": "(내돈내산) [강변역 맛집/광진구 맛집] 한마음정육식당 돼지고기 세트 가성비 맛 훌륭 (아기의자O)",
+      "address": "서울 광진구 구의강변로 49 1층",
       "place_id": "1619047366",
-      "place_type": "place",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/place/1619047366/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ëìêµ¬ ë ¸ëì§ë¡ 147 2ì¸µ",
-      "place_id": "1699710729",
       "place_type": "restaurant",
       "reviews": [],
       "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1699710729/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ìì²êµ¬ ì¤ìë¡ 256 2ì¸µ",
-      "place_id": "1489349397",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1489349397/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ìë±í¬êµ¬ ëë°©ì²ë¡ 258 1ì¸µ",
-      "place_id": "1558449034",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1558449034/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ìì¸ ìíêµ¬ ìì¤ë¦ë¡ 6 1ì¸µ 104í¸",
-      "place_id": "1368618757",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1368618757/review/visitor"
-    },
-    {
-      "name": "한마음정육식당",
-      "address": "ì¶©ë¶ ì²­ì£¼ì í¥ëêµ¬ ìíë¡ 60 2ì¸µ 214í¸",
-      "place_id": "1852936527",
-      "place_type": "restaurant",
-      "reviews": [],
-      "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1852936527/review/visitor"
+      "review_url": "https://m.place.naver.com/restaurant/1619047366/review/visitor"
     }
   ]
 }
