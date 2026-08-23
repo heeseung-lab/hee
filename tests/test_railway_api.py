@@ -1,46 +1,35 @@
 from app import railway_api
 
 
-def test_railway_health_exposes_v20_batch_settings():
+def test_railway_health_exposes_v30_settings():
     client = railway_api.app.test_client()
-
     response = client.get("/api/health")
-
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload["version"] == "2.0"
-    assert payload["max_search_concurrency"] == 5
+    assert payload["version"] == "3.0"
+    assert payload["review_limit"] == 5
 
 
-def test_search_batch_deduplicates_by_place_id(monkeypatch):
-    def fake_search(brand, area):
-        return {
-            "ok": True,
-            "brand": brand,
-            "area": area,
-            "count": 1,
-            "stores": [{"name": f"{brand} {area}", "address": area, "place_id": "12345", "place_type": "restaurant"}],
-        }
+def test_check_batch_preserves_order(monkeypatch):
+    def fake_inspect(store):
+        return {**store, "checked": True, "reviews": [], "error": None}
 
-    monkeypatch.setattr(railway_api, "_search_area_result", fake_search)
+    monkeypatch.setattr(railway_api, "inspect_store", fake_inspect)
     client = railway_api.app.test_client()
-
-    response = client.post("/api/search-batch", json={"brand": "은화수식당", "areas": ["서울 강남", "서울 서초"], "concurrency": 9})
-
-    assert response.status_code == 200
+    response = client.post("/api/check-batch", json={"stores": [
+        {"name": "A", "place_id": "1"},
+        {"name": "B", "place_id": "2"},
+    ]})
     payload = response.get_json()
-    assert payload["ok"] is True
-    assert payload["count"] == 1
-    assert payload["concurrency"] == 5
-    assert [row["area"] for row in payload["results"]] == ["서울 강남", "서울 서초"]
+    assert response.status_code == 200
+    assert [row["name"] for row in payload["stores"]] == ["A", "B"]
 
 
-def test_search_plan_starts_with_naver_map_listing():
+def test_schedule_accepts_daily_time():
     client = railway_api.app.test_client()
-
-    response = client.get("/api/search-plan")
-
-    assert response.status_code == 200
+    response = client.put("/api/schedule", json={"enabled": True, "brand": "은화수식당", "frequency": "daily", "time": "10:30"})
     payload = response.get_json()
-    assert payload["areas"][0] == '네이버지도 검색목록'
+    assert response.status_code == 200
+    assert payload["schedule"]["enabled"] is True
+    assert payload["schedule"]["time"] == "10:30"
