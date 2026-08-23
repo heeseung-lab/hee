@@ -21,15 +21,20 @@ REGIONS = {
     "전북": (127.1088, 35.8203), "전남": (126.4629, 34.8161), "경북": (128.5056, 36.5760),
     "경남": (128.6919, 35.2383), "제주": (126.5312, 33.4996),
 }
-# 지도 내부 API가 차단돼도 네이버 통합검색으로 최소한 전국 주요 권역을 다시 찾는다.
+# 네이버 지도는 검색 좌표/지역어에 따라 결과가 달라지므로 시군구 단위 질의를 병행한다.
 SEARCH_AREAS = [
-    "서울 강남", "서울 강북", "서울 송파", "서울 마포", "서울 영등포", "서울 관악", "서울 노원", "서울 구로",
+    "서울 강남", "서울 서초", "서울 송파", "서울 강동", "서울 광진", "서울 성동", "서울 동대문", "서울 중랑",
+    "서울 성북", "서울 강북", "서울 도봉", "서울 노원", "서울 은평", "서울 서대문", "서울 마포", "서울 양천",
+    "서울 강서", "서울 구로", "서울 금천", "서울 영등포", "서울 동작", "서울 관악", "서울 용산", "서울 중구", "서울 종로",
     "경기 수원", "경기 성남", "경기 용인", "경기 고양", "경기 화성", "경기 안산", "경기 안양", "경기 부천",
     "경기 남양주", "경기 평택", "경기 시흥", "경기 김포", "경기 파주", "경기 의정부", "경기 광주", "경기 하남",
-    "인천", "부산", "대구", "대전", "광주", "울산", "세종", "제주",
-    "강원 춘천", "강원 원주", "강원 강릉", "충북 청주", "충북 충주", "충남 천안", "충남 아산",
-    "전북 전주", "전북 군산", "전북 익산", "전남 목포", "전남 순천", "전남 여수",
-    "경북 포항", "경북 구미", "경북 경주", "경남 창원", "경남 김해", "경남 양산", "경남 진주",
+    "경기 광명", "경기 군포", "경기 오산", "경기 이천", "경기 양주", "경기 구리", "경기 포천", "경기 의왕",
+    "인천 중구", "인천 남동", "인천 부평", "인천 서구", "인천 연수", "부산 해운대", "부산 부산진", "부산 동래", "부산 사하", "부산 북구",
+    "대구 수성", "대구 달서", "대구 북구", "대전 서구", "대전 유성", "광주 북구", "광주 서구", "울산 남구", "울산 북구", "세종",
+    "강원 춘천", "강원 원주", "강원 강릉", "강원 속초", "충북 청주", "충북 충주", "충북 제천", "충남 천안", "충남 아산", "충남 서산",
+    "전북 전주", "전북 군산", "전북 익산", "전북 정읍", "전남 목포", "전남 순천", "전남 여수", "전남 광양",
+    "경북 포항", "경북 구미", "경북 경주", "경북 안동", "경북 경산", "경남 창원", "경남 김해", "경남 양산", "경남 진주", "경남 거제",
+    "제주 제주시", "제주 서귀포",
 ]
 
 
@@ -75,8 +80,7 @@ def decode_js(s: str) -> str:
 
 def extract_map_rows(text: str, brand: str):
     text = decode_js(text)
-    out = []
-    seen = set()
+    out, seen = [], set()
     patterns = [re.compile(r'"id"\s*:\s*"?([0-9]{5,})"?'), re.compile(r'"placeId"\s*:\s*"?([0-9]{5,})"?'), re.compile(r'/place/([0-9]{5,})')]
     candidates = []
     for pattern in patterns:
@@ -128,64 +132,52 @@ def _walk_place_rows(obj, brand: str, out: dict):
 def _api_search(crawler: NaverPlaceCrawler, query: str, brand: str, coord):
     lon, lat = coord
     referer = f"https://map.naver.com/p/search/{quote(query)}"
-    headers = {
-        "Referer": referer,
-        "Accept": "application/json, text/plain, */*",
-        "Origin": "https://map.naver.com",
-        "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0"),
-    }
-    endpoints = [
-        ("https://map.naver.com/p/api/search/allSearch", {
-            "query": query, "type": "all", "searchCoord": f"{lon};{lat}", "boundary": ""
-        }),
-    ]
+    headers = {"Referer": referer, "Accept": "application/json, text/plain, */*", "Origin": "https://map.naver.com", "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0")}
     found = {}
-    for url, params in endpoints:
-        try:
-            r = crawler.session.get(url, params=params, timeout=20, headers=headers)
-            if r.status_code != 200:
-                continue
+    try:
+        r = crawler.session.get("https://map.naver.com/p/api/search/allSearch", params={"query": query, "type": "all", "searchCoord": f"{lon};{lat}", "boundary": ""}, timeout=20, headers=headers)
+        if r.status_code == 200:
             try:
-                data = r.json()
-                _walk_place_rows(data, brand, found)
+                _walk_place_rows(r.json(), brand, found)
             except ValueError:
                 for row in extract_map_rows(r.text, brand):
                     found[row["place_id"]] = row
-        except Exception:
-            continue
+    except Exception:
+        pass
     return list(found.values())
 
 
-def _search_html_fallback(crawler: NaverPlaceCrawler, brand: str):
+def _coord_for_area(area: str):
+    prefix = area.split()[0]
+    return REGIONS.get(prefix, REGIONS["서울"])
+
+
+def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
+    query = f"{brand} {area}".strip()
     found = {}
-    for area in SEARCH_AREAS:
-        query = f"{brand} {area}"
-        try:
-            match = crawler.resolve_place(query)
-            if match.place_id not in found:
-                found[match.place_id] = {
-                    "name": brand,
-                    "address": area,
-                    "place_id": match.place_id,
-                    "place_type": match.place_type or "restaurant",
-                }
-        except Exception:
-            pass
-        time.sleep(0.12)
+    for row in _api_search(crawler, query, brand, _coord_for_area(area)):
+        found[row["place_id"]] = row
+    # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
+    try:
+        match = crawler.resolve_place(query)
+        found.setdefault(match.place_id, {"name": brand, "address": area, "place_id": match.place_id, "place_type": match.place_type or "restaurant"})
+    except Exception:
+        pass
     return list(found.values())
 
 
 def discover_stores(crawler: NaverPlaceCrawler, brand: str):
     stores = {}
-    queries = [(brand, REGIONS["서울"])] + [(f"{brand} {region}", coord) for region, coord in REGIONS.items()]
-    for query, coord in queries:
+    # 광역 단위 지도검색
+    for query, coord in [(brand, REGIONS["서울"])] + [(f"{brand} {region}", coord) for region, coord in REGIONS.items()]:
         for row in _api_search(crawler, query, brand, coord):
             stores[row["place_id"]] = row
-        time.sleep(0.15)
-    # Railway/클라우드 IP에서 지도 검색 API가 403/빈 응답이면 통합검색으로 자동 폴백한다.
-    if not stores:
-        for row in _search_html_fallback(crawler, brand):
+        time.sleep(0.08)
+    # 시군구 단위 지도검색 + 통합검색을 항상 추가해 결과 누락을 줄인다.
+    for area in SEARCH_AREAS:
+        for row in search_one_area(crawler, brand, area):
             stores[row["place_id"]] = row
+        time.sleep(0.06)
     return sorted(stores.values(), key=lambda x: (x.get("name", ""), x.get("address", "")))
 
 
@@ -229,7 +221,7 @@ def main(brand: str, days: int = 7):
         print(f"[{i}/{len(stores)}] {row['name']} {'OK' if not row['error'] else 'FAIL'}")
     generated = datetime.now(timezone.utc).isoformat()
     failed = [r for r in rows if r.get("error")]
-    payload = {"brand": brand, "generated_at": generated, "window_days": days, "window_label": f"최근 {days}일", "stores_total": len(rows), "stores_ok": len(rows) - len(failed), "stores_failed": len(failed), "window_days": days, "stores": rows}
+    payload = {"brand": brand, "generated_at": generated, "window_days": days, "window_label": f"최근 {days}일", "stores_total": len(rows), "stores_ok": len(rows) - len(failed), "stores_failed": len(failed), "stores": rows}
     slug = slugify(brand)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{slug}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
