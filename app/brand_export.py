@@ -78,6 +78,45 @@ def decode_js(s: str) -> str:
     return html.unescape(s.replace("\\u002F", "/").replace("\\u0026", "&").replace("\\/", "/"))
 
 
+def clean_place_name(value: str) -> str:
+    value = decode_js(str(value or ""))
+    value = re.sub(r"<[^>]+>", "", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def search_result_place_details(crawler: NaverPlaceCrawler, query: str, brand: str, place_id: str):
+    url = f"https://search.naver.com/search.naver?query={quote(query)}"
+    try:
+        r = crawler.session.get(url, timeout=crawler.timeout)
+    except Exception:
+        return None, None
+    if r.status_code != 200:
+        return None, None
+    body = decode_js(r.text)
+    pos = body.find(str(place_id))
+    if pos < 0:
+        pos = 0
+    block = body[max(0, pos - 2500): min(len(body), pos + 3500)]
+    names = []
+    for pattern in [
+        r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
+        r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
+        r'"title"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
+    ]:
+        for match in re.finditer(pattern, block):
+            name = clean_place_name(match.group(1))
+            if brand.lower() in name.lower() and name not in names:
+                names.append(name)
+    names.sort(key=lambda x: (x == brand, -len(x)))
+    address = None
+    for pattern in [r'"(?:roadAddress|address|jibunAddress)"\s*:\s*"([^"]+)"']:
+        match = re.search(pattern, block)
+        if match:
+            address = clean_place_name(match.group(1))
+            break
+    return (names[0] if names else None), address
+
+
 def extract_map_rows(text: str, brand: str):
     text = decode_js(text)
     out, seen = [], set()
@@ -94,11 +133,15 @@ def extract_map_rows(text: str, brand: str):
         if brand.lower() not in block.lower():
             continue
         name = brand
-        for p in [r'"name"\s*:\s*"([^"]+)"', r'"businessName"\s*:\s*"([^"]+)"']:
-            mm = re.search(p, block)
-            if mm and brand.lower() in mm.group(1).lower():
-                name = decode_js(mm.group(1)).strip()
-                break
+        candidates = []
+        for p in [r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"', r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"']:
+            for mm in re.finditer(p, block):
+                candidate = clean_place_name(mm.group(1))
+                if brand.lower() in candidate.lower() and candidate not in candidates:
+                    candidates.append(candidate)
+        if candidates:
+            candidates.sort(key=lambda x: (x == brand, -len(x)))
+            name = candidates[0]
         address = ""
         for p in [r'"roadAddress"\s*:\s*"([^"]+)"', r'"address"\s*:\s*"([^"]+)"']:
             mm = re.search(p, block)
@@ -117,7 +160,7 @@ def _walk_place_rows(obj, brand: str, out: dict):
         if isinstance(name, str) and brand.lower() in html.unescape(name).lower() and str(pid or "").isdigit():
             address = obj.get("roadAddress") or obj.get("address") or obj.get("jibunAddress") or ""
             out[str(pid)] = {
-                "name": re.sub(r"<[^>]+>", "", html.unescape(name)).strip(),
+                "name": clean_place_name(name),
                 "address": html.unescape(str(address)).strip(),
                 "place_id": str(pid),
                 "place_type": str(obj.get("businessType") or obj.get("type") or "restaurant").lower(),
@@ -160,7 +203,13 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
     # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
     try:
         match = crawler.resolve_place(query)
-        found.setdefault(match.place_id, {"name": brand, "address": area, "place_id": match.place_id, "place_type": match.place_type or "restaurant"})
+        detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
+        found.setdefault(match.place_id, {
+            "name": clean_place_name(getattr(match, "name", None) or detail_name or brand),
+            "address": clean_place_name(getattr(match, "address", None) or detail_address or area),
+            "place_id": match.place_id,
+            "place_type": match.place_type or "restaurant",
+        })
     except Exception:
         pass
     return list(found.values())
