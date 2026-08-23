@@ -1,1 +1,141 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>브랜드 리뷰 모니터링</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f6f8;font-family:Arial,"Noto Sans KR",sans-serif;color:#171717}.wrap{max-width:1200px;margin:auto;padding:22px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;margin-bottom:14px}h1{margin:0 0 6px;font-size:30px}.muted{color:#737373}.row{display:grid;grid-template-columns:1fr auto auto auto;gap:8px}.row input{padding:14px;border:1px solid #d4d4d8;border-radius:11px;font-size:16px}.btn{padding:14px 18px;border:0;border-radius:11px;background:#171717;color:white;font-weight:800}.blue{background:#1d4ed8}.alt{background:#fff;color:#171717;border:1px solid #d4d4d8}.btn:disabled{opacity:.4}.status{margin-top:12px;padding:12px;background:#f8fafc;border-radius:10px}.bar{height:10px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:10px}.bar i{display:block;width:0;height:100%;background:#171717;transition:.2s}.log{max-height:145px;overflow:auto;margin-top:10px;background:#111827;color:#d1d5db;border-radius:11px;padding:10px;font:12px/1.55 monospace}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric b{display:block;font-size:28px;margin-top:5px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stores{max-height:700px;overflow:auto}.store,.rank{padding:12px 0;border-bottom:1px solid #eee}.store b{font-size:15px}.idline{font-size:12px;color:#737373;margin-top:4px}.pill{display:inline-block;padding:4px 8px;border-radius:99px;font-size:11px;font-weight:800;background:#e0e7ff;color:#3730a3}.good{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#b91c1c}.rank{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px}.rankno{font-size:20px;font-weight:900}.praise{font-weight:900;color:#166534}.review{padding:12px 0;border-bottom:1px solid #eee;line-height:1.6}.empty{padding:35px;text-align:center;color:#737373}@media(max-width:800px){.row,.metrics,.layout{grid-template-columns:1fr}.wrap{padding:14px}}</style></head><body><div class="wrap"><h1><span id="title">브랜드</span> 리뷰 모니터링</h1><div class="muted">네이버 지도 기준 매장 최대수집 → 최근 7일 리뷰 검사 → 칭찬 TOP 10</div><div class="card" style="margin-top:16px"><div class="row"><input id="brand" placeholder="예: 은화수식당"><button class="btn blue" id="collect">① 매장 수집</button><button class="btn" id="check" disabled>② 리뷰 검사</button><button class="btn alt" id="stop" disabled>중지</button></div><div class="status" id="status">브랜드명을 입력하세요.</div><div class="bar"><i id="bar"></i></div><div class="log" id="log"><div>READY</div></div></div><div class="metrics"><div class="card metric">전체 매장<b id="total">0</b><small class="muted">Place ID 중복제거</small></div><div class="card metric">검사 완료<b id="done">0</b></div><div class="card metric">최근 7일 리뷰<b id="reviewsN">0</b></div><div class="card metric">칭찬 리뷰<b id="goodN">0</b></div></div><div class="card"><h3 style="margin-top:0">🏆 칭찬 많은 매장 TOP 10</h3><div class="muted" style="margin-bottom:8px">최근 7일 리뷰에서 칭찬 키워드가 포함된 리뷰 수 기준</div><div id="top10" class="empty">리뷰 검사가 끝나면 자동 표시됩니다.</div></div><div class="layout"><div class="card"><h3 style="margin-top:0">매장 목록</h3><div class="muted" style="margin-bottom:8px">ID 옆에 실제 검색된 매장명을 함께 표시합니다.</div><div id="stores" class="stores"><div class="empty">수집 전</div></div></div><div class="card"><h3 id="detail" style="margin-top:0">리뷰 상세</h3><div id="reviewList" class="empty">매장을 선택하세요.</div></div></div></div><script>let D={brand:'',stores:[]},run=false;const $=x=>document.getElementById(x),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));function lg(x){let d=document.createElement('div');d.textContent=new Date().toLocaleTimeString('ko-KR')+' · '+x;$('log').prepend(d)}function prog(x){$('bar').style.width=x+'%'}async function api(u,o){let r=await fetch(u,o),d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||r.status);return d}function goodCount(s){return(s.reviews||[]).filter(r=>(r.good_hits||[]).length>0).length}function render(){let total=D.stores.length,done=D.stores.filter(s=>s.checked).length,rn=D.stores.reduce((n,s)=>n+(s.reviews||[]).length,0),gn=D.stores.reduce((n,s)=>n+goodCount(s),0);$('title').textContent=D.brand||'브랜드';$('total').textContent=total;$('done').textContent=done;$('reviewsN').textContent=rn;$('goodN').textContent=gn;$('stores').innerHTML=total?D.stores.map((s,i)=>`<div class="store" data-i="${i}"><b>${esc(s.name||D.brand)}</b><div class="idline">ID ${esc(s.place_id)} · ${esc(s.name||D.brand)}</div><div class="idline">${esc(s.address||'주소 정보 없음')} · 리뷰 ${(s.reviews||[]).length} · 칭찬 ${goodCount(s)}</div></div>`).join(''):'<div class="empty">수집된 매장이 없습니다.</div>';document.querySelectorAll('.store').forEach(e=>e.onclick=()=>show(D.stores[+e.dataset.i]));let rank=D.stores.filter(s=>s.checked).map(s=>({s,g:goodCount(s),r:(s.reviews||[]).length})).sort((a,b)=>b.g-a.g||b.r-a.r).slice(0,10);$('top10').innerHTML=rank.length?rank.map((x,i)=>`<div class="rank"><div class="rankno">${i+1}</div><div><b>${esc(x.s.name)}</b><div class="idline">ID ${esc(x.s.place_id)} · ${esc(x.s.address||'')}</div></div><div class="praise">칭찬 ${x.g}</div></div>`).join(''):'<div class="empty">리뷰 검사가 끝나면 자동 표시됩니다.</div>'}function show(s){$('detail').textContent=s.name+' · 최근 7일';$('reviewList').innerHTML=(s.reviews||[]).length?(s.reviews||[]).map(r=>`<div class="review"><span class="pill ${(r.good_hits||[]).length?'good':(r.bad_hits||[]).length?'bad':''}">${(r.good_hits||[]).length?'칭찬':(r.bad_hits||[]).length?'불만':'일반'}</span> ${esc(r.text)}<div class="idline">칭찬 ${(r.good_hits||[]).join(', ')||'-'} · 불만 ${(r.bad_hits||[]).join(', ')||'-'} · ${esc(r.created_at||'')}</div></div>`).join(''):'<div class="empty">최근 7일 리뷰가 없습니다.</div>'}async function collect(){let brand=$('brand').value.trim();if(brand.length<2||run)return;run=true;$('collect').disabled=true;$('check').disabled=true;$('stop').disabled=false;D={brand,stores:[]};render();let seen=new Map();try{let p=await api('/api/search-plan');lg(`전국 ${p.count}개 지역 탐색 시작`);for(let i=0;i<p.areas.length&&run;i++){let area=p.areas[i];$('status').textContent=`${i+1}/${p.count} ${area} 검색 · 현재 ${seen.size}개`;prog(Math.round((i/p.count)*100));try{let x=await api('/api/search-area',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brand,area})});let add=0;(x.stores||[]).forEach(s=>{if(s.place_id&&!seen.has(s.place_id)){seen.set(s.place_id,{...s,checked:false,reviews:[]});add++}});if(add)lg(`${area} +${add} · 누적 ${seen.size}`)}catch(e){lg(`${area} 오류 ${e.message}`)}if(i%4===0){D.stores=[...seen.values()];render()}}D.stores=[...seen.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||''));render();prog(100);$('status').textContent=`수집 완료 · 중복 제거 후 ${D.stores.length}개`;lg(`최종 ${D.stores.length}개 Place ID 확보`);$('check').disabled=!D.stores.length}catch(e){$('status').textContent='수집 실패 · '+e.message}finally{run=false;$('collect').disabled=false;$('stop').disabled=true}}async function check(){if(run||!D.stores.length)return;run=true;$('collect').disabled=true;$('check').disabled=true;$('stop').disabled=false;let ok=0;for(let i=0;i<D.stores.length&&run;i++){let s=D.stores[i];$('status').textContent=`${i+1}/${D.stores.length} ${s.name} 리뷰 검사 · 완료 ${ok}`;prog(Math.round(((i+1)/D.stores.length)*100));try{let x=await api('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:s.name,address:s.address,place_id:s.place_id,place_type:s.place_type,days:7})});s.reviews=x.reviews||[];s.checked=true;s.error=null;ok++;lg(`${s.name} 리뷰 ${s.reviews.length} · 칭찬 ${goodCount(s)}`)}catch(e){s.error=e.message;lg(`${s.name} 실패`)}render()}$('status').textContent=`리뷰 검사 종료 · ${ok}/${D.stores.length} 완료`;run=false;$('collect').disabled=false;$('check').disabled=false;$('stop').disabled=true} $('collect').onclick=collect;$('check').onclick=check;$('stop').onclick=()=>{run=false;$('status').textContent='중지 요청됨'};$('brand').addEventListener('keydown',e=>{if(e.key==='Enter')collect()});render();</script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>브랜드 리뷰 모니터링</title>
+  <style>
+    :root{--bg:#f4f6f8;--card:#fff;--line:#dfe3e8;--text:#171717;--muted:#667085;--red:#b42318;--green:#067647;--amber:#b54708;--blue:#175cd3;--ink:#101828}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,"Noto Sans KR",sans-serif;color:var(--text)}.wrap{max-width:1440px;margin:auto;padding:22px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}.head h1{margin:0;font-size:30px;letter-spacing:0}.muted{color:var(--muted)}.card,.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px}.panel{margin:16px 0}.brandrow{display:grid;grid-template-columns:minmax(220px,1fr) auto auto auto;gap:8px}.brandrow input,.toolbar input,.toolbar select{border:1px solid #cfd4dc;border-radius:8px;padding:12px 13px;font-size:15px;background:#fff;min-width:0}.btn{border:0;border-radius:8px;padding:12px 16px;font-weight:800;cursor:pointer;background:var(--ink);color:#fff;white-space:nowrap}.btn.blue{background:var(--blue)}.btn.alt{background:#fff;color:var(--ink);border:1px solid #cfd4dc}.btn:disabled{opacity:.45;cursor:not-allowed}.status{margin-top:12px;padding:12px 13px;background:#f8fafc;border:1px solid #edf0f3;border-radius:8px}.progress{height:10px;background:#e8edf2;border-radius:99px;overflow:hidden;margin-top:10px}.progress i{display:block;height:100%;width:0;background:var(--ink);transition:width .2s ease}.phasegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.phase{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;background:#fff}.phase.active{border-color:#84adff;background:#eff4ff;color:var(--blue)}.phase.done{border-color:#75e0a7;background:#ecfdf3;color:var(--green)}.log{margin-top:10px;max-height:142px;overflow:auto;background:#111827;color:#d1d5db;border-radius:8px;padding:10px 12px;font:12px/1.55 Consolas,monospace}.log div+div{margin-top:3px}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.metric span{font-size:13px;color:var(--muted)}.metric b{display:block;font-size:28px;margin-top:5px}.metric small{color:var(--muted)}.toolbar{display:grid;grid-template-columns:1.2fr .65fr auto;gap:8px;margin-bottom:12px}.content{display:grid;grid-template-columns:minmax(430px,1.1fr) minmax(420px,.9fr);gap:14px}.stack{display:grid;gap:14px}.stores{max-height:680px;overflow:auto}.store,.rank,.review{border-bottom:1px solid #eef0f3;padding:13px 0}.store{cursor:pointer}.store:hover{background:#f9fafb}.top{display:flex;justify-content:space-between;gap:8px;align-items:center}.idline{font-size:12px;color:var(--muted);margin-top:4px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}.critical{background:#fee4e2;color:var(--red)}.warning{background:#fef0c7;color:var(--amber)}.good{background:#dcfae6;color:var(--green)}.failed{background:#f2f4f7;color:#475467}.pending{background:#e0e7ff;color:#3730a3}.bad{background:#fee4e2;color:var(--red);font-weight:800;padding:2px 4px;border-radius:4px}.goodword{background:#dcfae6;color:var(--green);font-weight:800;padding:2px 4px;border-radius:4px}.rank{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px}.rankno{font-size:20px;font-weight:900}.praise{font-weight:900;color:var(--green)}.empty{text-align:center;color:var(--muted);padding:38px 12px}.error{color:var(--red)}@media(max-width:960px){.summary,.content,.toolbar,.brandrow,.phasegrid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.wrap{padding:14px}.btn{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1><span id="brandTitle">브랜드</span> 리뷰 모니터링</h1>
+        <div class="muted" style="margin-top:6px">매장 수집과 리뷰 검사를 분리하고, 위험 매장과 칭찬 많은 매장을 함께 봅니다.</div>
+      </div>
+      <button class="btn alt" id="healthBtn">엔진 확인</button>
+    </div>
+
+    <div class="panel">
+      <div class="brandrow">
+        <input id="brand" placeholder="예: 은화수식당, 청년다방">
+        <button class="btn blue" id="collectBtn">① 매장 수집</button>
+        <button class="btn" id="inspectBtn" disabled>② 리뷰 검사</button>
+        <button class="btn alt" id="stopBtn" disabled>중지</button>
+      </div>
+      <div id="status" class="status">브랜드명을 입력하고 먼저 매장을 수집하세요.</div>
+      <div class="progress"><i id="bar"></i></div>
+      <div class="phasegrid">
+        <div class="phase" id="p1">① 지역별 매장 탐색</div>
+        <div class="phase" id="p2">② Place ID 중복 제거</div>
+        <div class="phase" id="p3">③ 최근 7일 리뷰 검사</div>
+      </div>
+      <div id="log" class="log"><div>READY · 수집 대기</div></div>
+    </div>
+
+    <div class="summary">
+      <div class="card metric"><span>전체 매장</span><b id="mStores">0</b><small>Place ID 기준</small></div>
+      <div class="card metric"><span>검사 완료</span><b id="mOk">0</b><small id="rOk">검사완료율 0.0%</small></div>
+      <div class="card metric"><span>최근 7일 리뷰</span><b id="mReviews">0</b><small id="rFail">검사실패율 0.0%</small></div>
+      <div class="card metric"><span>불량 리뷰</span><b id="mBad">0</b><small id="rBad">불량리뷰율 0.0%</small></div>
+      <div class="card metric"><span>집중관리</span><b id="mCritical">0</b><small id="rCritical">집중관리율 0.0%</small></div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="toolbar">
+          <input id="storeSearch" placeholder="매장명 또는 주소 검색">
+          <select id="filter">
+            <option value="all">전체 상태</option>
+            <option value="pending">미검사</option>
+            <option value="critical">집중관리</option>
+            <option value="warning">주의</option>
+            <option value="good">정상</option>
+            <option value="failed">검사실패</option>
+          </select>
+          <span class="muted" style="align-self:center">위험도 높은 순 정렬</span>
+        </div>
+        <b>매장 현황</b>
+        <div id="stores" class="stores"><div class="empty">아직 수집한 브랜드가 없습니다.</div></div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <b>칭찬 많은 매장 TOP 10</b>
+          <div class="idline">최근 7일 리뷰 중 좋은 키워드가 포함된 리뷰 수 기준</div>
+          <div id="top10"><div class="empty">리뷰 검사가 끝나면 자동으로 표시됩니다.</div></div>
+        </div>
+        <div class="card">
+          <b id="detailTitle">리뷰 상세</b>
+          <div id="reviews" class="empty">리뷰 검사가 끝난 매장을 선택하면 표시됩니다.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let DATA={brand:'',stores:[]},running=false;
+    const $=x=>document.getElementById(x),pct=(a,b)=>b?((a/b)*100).toFixed(1)+'%':'0.0%';
+    const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    function log(msg){const d=document.createElement('div');d.textContent=new Date().toLocaleTimeString('ko-KR')+' · '+msg;$('log').prepend(d)}
+    function phase(id,state){['active','done'].forEach(c=>$(id).classList.remove(c));if(state)$(id).classList.add(state)}
+    function setBar(v){$('bar').style.width=Math.max(0,Math.min(100,v))+'%'}
+    function level(s){if(!s.checked&&!s.error)return'pending';if(s.error)return'failed';if(!s.reviews?.length)return'good';const max=Math.max(...s.reviews.map(r=>r.score||0));return max>=20?'critical':max>=10?'warning':'good'}
+    function label(l){return{critical:'집중관리',warning:'주의',good:'정상',failed:'검사실패',pending:'미검사'}[l]}
+    function badge(l){return`<span class="pill ${l}">${label(l)}</span>`}
+    function goodCount(s){return(s.reviews||[]).filter(r=>(r.good_hits||[]).length>0).length}
+    function stats(s){return{level:level(s),bad:(s.reviews||[]).filter(r=>(r.bad_hits||[]).length).length,good:goodCount(s)}}
+    async function api(url,opt){const r=await fetch(url,opt);const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||`HTTP ${r.status}`);return d}
+    function chunks(arr,size){const out=[];for(let i=0;i<arr.length;i+=size)out.push(arr.slice(i,i+size));return out}
+    function render(){
+      const rows=DATA.stores.map((s,i)=>({s,i,st:stats(s)}));
+      const q=$('storeSearch').value.trim(),f=$('filter').value,rank={critical:5,warning:4,failed:3,pending:2,good:1};
+      const list=rows.filter(x=>(!q||(x.s.name+x.s.address).includes(q))&&(f==='all'||x.st.level===f)).sort((a,b)=>rank[b.st.level]-rank[a.st.level]||b.st.bad-a.st.bad||(a.s.name||'').localeCompare(b.s.name||''));
+      const total=rows.length,ok=rows.filter(x=>x.s.checked&&!x.s.error).length,fail=rows.filter(x=>x.s.error).length,reviews=rows.reduce((n,x)=>n+(x.s.reviews?.length||0),0),bad=rows.reduce((n,x)=>n+x.st.bad,0),critical=rows.filter(x=>x.st.level==='critical').length;
+      $('brandTitle').textContent=DATA.brand||'브랜드';$('mStores').textContent=total;$('mOk').textContent=ok;$('mReviews').textContent=reviews;$('mBad').textContent=bad;$('mCritical').textContent=critical;
+      $('rOk').textContent='검사완료율 '+pct(ok,total);$('rFail').textContent='검사실패율 '+pct(fail,total);$('rBad').textContent='불량리뷰율 '+pct(bad,reviews);$('rCritical').textContent='집중관리율 '+pct(critical,total);
+      $('stores').innerHTML=list.length?list.map(x=>`<div class="store" data-i="${x.i}"><div class="top"><b>${esc(x.s.name||DATA.brand)}</b>${badge(x.st.level)}</div><div class="idline">ID ${esc(x.s.place_id||'-')} · ${esc(x.s.address||'주소 정보 없음')}</div><div class="idline">리뷰 ${x.s.reviews?.length||0} · 불량 ${x.st.bad} · 칭찬 ${x.st.good}${x.s.error?' · '+esc(x.s.error):''}</div></div>`).join(''):'<div class="empty">표시할 매장이 없습니다.</div>';
+      document.querySelectorAll('.store').forEach(e=>e.onclick=()=>show(DATA.stores[+e.dataset.i]));
+      const ranking=rows.filter(x=>x.s.checked).map(x=>({...x,g:x.st.good,r:x.s.reviews?.length||0})).sort((a,b)=>b.g-a.g||b.r-a.r||(a.s.name||'').localeCompare(b.s.name||'')).slice(0,10);
+      $('top10').innerHTML=ranking.length?ranking.map((x,i)=>`<div class="rank"><div class="rankno">${i+1}</div><div><b>${esc(x.s.name||DATA.brand)}</b><div class="idline">ID ${esc(x.s.place_id||'-')} · ${esc(x.s.address||'')}</div></div><div class="praise">칭찬 ${x.g}</div></div>`).join(''):'<div class="empty">리뷰 검사가 끝나면 자동으로 표시됩니다.</div>';
+    }
+    function show(s){
+      $('detailTitle').textContent=(s.name||DATA.brand)+' · 최근 7일';
+      if(!s.checked){$('reviews').innerHTML='<div class="empty">아직 리뷰 검사를 하지 않은 매장입니다.</div>';return}
+      if(!s.reviews?.length){$('reviews').innerHTML=`<div class="empty">${s.error?`<span class="error">${esc(s.error)}</span><br><br>`:''}최근 7일 리뷰가 없습니다.</div>`;return}
+      $('reviews').innerHTML=s.reviews.map(r=>{let t=esc(r.text);(r.bad_hits||[]).forEach(w=>t=t.replaceAll(esc(w),`<span class="bad">${esc(w)}</span>`));(r.good_hits||[]).forEach(w=>t=t.replaceAll(esc(w),`<span class="goodword">${esc(w)}</span>`));const l=(r.score||0)>=20?'critical':(r.score||0)>=10?'warning':'good';return`<div class="review">${badge(l)}<div style="margin-top:8px;line-height:1.7">${t}</div><div class="idline">불량 ${(r.bad_hits||[]).join(', ')||'-'} · 좋은 ${(r.good_hits||[]).join(', ')||'-'} · ${esc(r.created_at||'')}</div></div>`}).join('')
+    }
+    async function collect(){
+      const brand=$('brand').value.trim();if(brand.length<2||running)return;
+      running=true;$('collectBtn').disabled=true;$('inspectBtn').disabled=true;$('stopBtn').disabled=false;DATA={brand,stores:[]};render();phase('p1','active');phase('p2',null);phase('p3',null);setBar(0);$('status').textContent=`${brand} · 전국 지역별 매장 수집 시작`;log(`${brand} 수집 시작`);
+      try{
+        const plan=await api('/api/search-plan');const batchSize=plan.batch_size||5,areaBatches=chunks(plan.areas,batchSize),seen=new Map();
+        for(let i=0;i<areaBatches.length&&running;i++){
+          const areas=areaBatches[i];$('status').textContent=`${brand} · ${i+1}/${areaBatches.length} 묶음 검색 중 · 현재 ${seen.size}개`;setBar((i/areaBatches.length)*86);
+          try{
+            const d=await api('/api/search-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brand,areas,concurrency:batchSize})});
+            (d.results||[]).forEach(result=>{let added=0;(result.stores||[]).forEach(s=>{if(s.place_id&&!seen.has(s.place_id)){seen.set(s.place_id,{...s,reviews:[],error:null,checked:false});added++}});log(`${result.area} · ${result.ok?`+${added}개`:`오류 ${result.error}`} · 누적 ${seen.size}개`)});
+          }catch(e){log(`${areas.join(', ')} · 묶음 검색 오류 ${e.message}`)}
+          DATA.stores=[...seen.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||'')||(a.address||'').localeCompare(b.address||''));render();await sleep(120);
+        }
+        phase('p1','done');phase('p2','active');$('status').textContent=`${brand} · Place ID 기준 중복 제거 및 목록 정리 중`;setBar(94);await sleep(180);phase('p2','done');setBar(100);$('status').textContent=`${brand} 매장 수집 완료 · ${DATA.stores.length}개 발견`;log(`수집 완료 · 중복 제거 후 ${DATA.stores.length}개`);$('inspectBtn').disabled=DATA.stores.length===0;
+      }catch(e){$('status').innerHTML=`<span class="error">수집 실패 · ${esc(e.message)}</span>`;log(`수집 실패 · ${e.message}`)}
+      finally{running=false;$('collectBtn').disabled=false;$('stopBtn').disabled=true}
+    }
+    async function inspect(){
+      if(running||!DATA.stores.length)return;running=true;$('collectBtn').disabled=true;$('inspectBtn').disabled=true;$('stopBtn').disabled=false;phase('p3','active');setBar(0);let ok=0,fail=0;log(`리뷰 검사 시작 · ${DATA.stores.length}개 매장`);
+      for(let i=0;i<DATA.stores.length&&running;i++){
+        const s=DATA.stores[i];$('status').textContent=`${DATA.brand} · ${i+1}/${DATA.stores.length} ${s.name||DATA.brand} 리뷰 검사 · 성공 ${ok} · 실패 ${fail}`;setBar(((i+1)/DATA.stores.length)*100);
+        try{const x=await api('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:s.name,address:s.address,place_id:s.place_id,place_type:s.place_type,days:7})});s.reviews=x.reviews||[];s.checked=true;s.error=null;ok++;log(`${s.name||DATA.brand} · 완료 · 최근7일 ${s.reviews.length}건 · 칭찬 ${goodCount(s)}건`)}
+        catch(e){s.error=e.message;s.checked=false;fail++;log(`${s.name||DATA.brand} · 실패 · ${e.message}`)}
+        render();
+      }
+      if(running)phase('p3','done');$('status').textContent=running?`${DATA.brand} 리뷰 검사 완료 · 성공 ${ok} · 실패 ${fail}`:`${DATA.brand} 검사를 중지했습니다.`;log(`리뷰 검사 종료 · 성공 ${ok} · 실패 ${fail}`);running=false;$('collectBtn').disabled=false;$('inspectBtn').disabled=false;$('stopBtn').disabled=true;
+    }
+    $('collectBtn').onclick=collect;$('inspectBtn').onclick=inspect;$('stopBtn').onclick=()=>running=false;$('brand').onkeydown=e=>{if(e.key==='Enter')collect()};$('storeSearch').oninput=render;$('filter').onchange=render;$('healthBtn').onclick=async()=>{try{const d=await api('/api/health');$('status').textContent=`엔진 정상 · ${d.service} v${d.version} · 동시 검색 ${d.max_search_concurrency}`;log(`엔진 확인 · v${d.version}`)}catch(e){$('status').textContent='엔진 오류 · '+e.message}};render();
+  </script>
+</body>
+</html>
