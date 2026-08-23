@@ -15,7 +15,7 @@ from app.review_analyzer import analyze_review
 
 app = Flask(__name__, static_folder=None)
 KST = ZoneInfo("Asia/Seoul")
-APP_VERSION = "3.0"
+APP_VERSION = "3.1"
 MAX_SEARCH_CONCURRENCY = 4
 MAX_REVIEW_CONCURRENCY = 3
 REVIEW_LIMIT = 5
