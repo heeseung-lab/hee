@@ -25,7 +25,7 @@ EXTRA_AREAS = [
 ]
 SEARCH_AREAS = list(dict.fromkeys(BASE_SEARCH_AREAS + EXTRA_AREAS))
 MAX_SEARCH_CONCURRENCY = 5
-APP_VERSION = "1.5"
+APP_VERSION = "1.6"
 
 ALLOWED_ORIGINS = {"https://heeseung-lab.github.io", "http://localhost:8000", "http://127.0.0.1:8000"}
 
