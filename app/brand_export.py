@@ -74,8 +74,28 @@ def recent(reviews, days):
     return [r for r in reviews if (review_date(r.get("created_at")) or datetime.min.date()) >= start]
 
 
+def repair_mojibake(value: str) -> str:
+    text = str(value or "")
+    best = text
+    for encoding in ("latin1", "cp1252"):
+        try:
+            candidate = text.encode(encoding).decode("utf-8")
+        except UnicodeError:
+            continue
+        if _text_quality(candidate) > _text_quality(best):
+            best = candidate
+    return best
+
+
+def _text_quality(value: str) -> int:
+    hangul = sum("\uac00" <= ch <= "\ud7a3" for ch in value)
+    mojibake = sum(ch in 'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ�' for ch in value)
+    return hangul * 3 - mojibake * 2
+
+
 def decode_js(s: str) -> str:
-    return html.unescape(s.replace("\\u002F", "/").replace("\\u0026", "&").replace("\\/", "/"))
+    decoded = html.unescape(s.replace("\\u002F", "/").replace("\\u0026", "&").replace("\\/", "/"))
+    return repair_mojibake(decoded)
 
 
 def clean_place_name(value: str) -> str:
@@ -107,6 +127,7 @@ def place_home_details(crawler: NaverPlaceCrawler, place_id: str, place_type: st
             continue
         if r.status_code != 200:
             continue
+        r.encoding = "utf-8"
         body = decode_js(r.text)
         for pattern in [
             r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
@@ -211,7 +232,7 @@ def _walk_place_rows(obj, brand: str, out: dict):
             address = obj.get("roadAddress") or obj.get("address") or obj.get("jibunAddress") or ""
             out[str(pid)] = {
                 "name": clean_place_name(name),
-                "address": html.unescape(str(address)).strip(),
+                "address": clean_place_name(address),
                 "place_id": str(pid),
                 "place_type": str(obj.get("businessType") or obj.get("type") or "restaurant").lower(),
             }
@@ -233,6 +254,7 @@ def _api_search(crawler: NaverPlaceCrawler, query: str, brand: str, coord):
             try:
                 _walk_place_rows(r.json(), brand, found)
             except ValueError:
+                r.encoding = "utf-8"
                 for row in extract_map_rows(r.text, brand):
                     found[row["place_id"]] = row
     except Exception:
@@ -250,13 +272,12 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
     found = {}
     for row in _api_search(crawler, query, brand, _coord_for_area(area)):
         found[row["place_id"]] = row
-    # 지도 API 결과 유무와 상관없이 통합검색/장소 홈을 확인해 지점명이 빠진 항목을 보강한다.
+    # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
     try:
         match = crawler.resolve_place(query)
         detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
         home_name, home_address = place_home_details(crawler, match.place_id, match.place_type or "restaurant", brand)
-        candidate_name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
-        candidate_name = better_place_name(candidate_name, home_name, brand)
+        candidate_name = getattr(match, "name", None) or detail_name or home_name
         candidate_address = getattr(match, "address", None) or detail_address or home_address
         fallback_row = {
             "name": clean_place_name(candidate_name or brand),
