@@ -2,7 +2,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, jsonify, request, send_from_directory
 
-from app.brand_export import SEARCH_AREAS as BASE_SEARCH_AREAS, discover_stores, recent, search_one_area
+from app.brand_export import NAVER_MAP_AREA, SEARCH_AREAS as BASE_SEARCH_AREAS, discover_stores, merge_store, recent, search_one_area
 from app.naver_crawler import NaverPlaceCrawler
 from app.review_analyzer import analyze_review
 
@@ -23,9 +23,9 @@ EXTRA_AREAS = [
     "경북 김천", "경북 영주", "경북 영천", "경북 상주", "경북 문경", "경북 의성", "경북 청송", "경북 영양", "경북 영덕", "경북 청도", "경북 고령", "경북 성주", "경북 칠곡", "경북 예천", "경북 봉화", "경북 울진", "경북 울릉",
     "경남 통영", "경남 사천", "경남 밀양", "경남 의령", "경남 함안", "경남 창녕", "경남 고성", "경남 남해", "경남 하동", "경남 산청", "경남 함양", "경남 거창", "경남 합천",
 ]
-SEARCH_AREAS = list(dict.fromkeys(BASE_SEARCH_AREAS + EXTRA_AREAS))
+SEARCH_AREAS = list(dict.fromkeys([NAVER_MAP_AREA] + BASE_SEARCH_AREAS + EXTRA_AREAS))
 MAX_SEARCH_CONCURRENCY = 5
-APP_VERSION = "1.8"
+APP_VERSION = "1.9"
 
 ALLOWED_ORIGINS = {"https://heeseung-lab.github.io", "http://localhost:8000", "http://127.0.0.1:8000"}
 
@@ -102,9 +102,7 @@ def search_batch():
     stores_by_id = {}
     for result in results:
         for store in result.get("stores") or []:
-            place_id = str(store.get("place_id") or "").strip()
-            if place_id and place_id not in stores_by_id:
-                stores_by_id[place_id] = store
+            merge_store(stores_by_id, store, brand)
     return jsonify({
         "ok": True,
         "brand": brand,
