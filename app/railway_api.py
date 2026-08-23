@@ -15,10 +15,10 @@ from app.review_analyzer import analyze_review
 
 app = Flask(__name__, static_folder=None)
 KST = ZoneInfo("Asia/Seoul")
-APP_VERSION = "3.1"
+APP_VERSION = "3.2"
 MAX_SEARCH_CONCURRENCY = 4
 MAX_REVIEW_CONCURRENCY = 3
-REVIEW_LIMIT = 5
+REVIEW_LIMIT = 10
 STATE_DIR = Path(os.getenv("APP_STATE_DIR", "/tmp/brand-review-monitor"))
 SCHEDULE_FILE = STATE_DIR / "schedule.json"
 RESULT_FILE = STATE_DIR / "last_result.json"
