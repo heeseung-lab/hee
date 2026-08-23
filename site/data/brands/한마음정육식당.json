@@ -1,6 +1,6 @@
 {
   "brand": "한마음정육식당",
-  "generated_at": "2026-08-23T01:14:21.622725+00:00",
+  "generated_at": "2026-08-23T01:28:36.145372+00:00",
   "window_days": 7,
   "window_label": "최근 7일",
   "stores_total": 1,
@@ -8,13 +8,13 @@
   "stores_failed": 0,
   "stores": [
     {
-      "name": "(내돈내산) [강변역 맛집/광진구 맛집] 한마음정육식당 돼지고기 세트 가성비 맛 훌륭 (아기의자O)",
-      "address": "서울 광진구 구의강변로 49 1층",
-      "place_id": "1619047366",
+      "name": "[은평구청 맛집] 가족끼리 가기 좋은 한마음정육식당 은평구청점",
+      "address": "서울 은평구 서오릉로 6 1층 104호",
+      "place_id": "1368618757",
       "place_type": "restaurant",
       "reviews": [],
       "error": null,
-      "review_url": "https://m.place.naver.com/restaurant/1619047366/review/visitor"
+      "review_url": "https://m.place.naver.com/restaurant/1368618757/review/visitor"
     }
   ]
 }
