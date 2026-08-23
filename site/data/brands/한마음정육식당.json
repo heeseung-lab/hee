@@ -1,6 +1,861 @@
 {
   "brand": "한마음정육식당",
-  "generated_at": "2026-08-23T02:01:08.828299+00:00",
-  "stores_total": 0,
-  "stores": []
+  "generated_at": "2026-08-23T02:13:38.162574+00:00",
+  "stores_total": 122,
+  "stores": [
+    {
+      "name": "한마음 정육식당 센텀강변점",
+      "address": "부산광역시 해운대구 재송동 1350 리슈빌상가 2층",
+      "place_id": "1491538413",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음 정육식당 오류점",
+      "address": "대전광역시 중구 오류동 155-8",
+      "place_id": "1088752975",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음 정육식당 충북영동점",
+      "address": "충청북도 영동군 영동읍 동정리 80-6 2층",
+      "place_id": "1170944212",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 가경점",
+      "address": "충청북도 청주시 흥덕구 가경동 2270 2층 214호",
+      "place_id": "1852936527",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 강릉교동점",
+      "address": "강원특별자치도 강릉시 교동 1886-1",
+      "place_id": "2085690078",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 검단신도시점",
+      "address": "인천광역시 검단구 원당동 1043-2 2층 한마음정육식당",
+      "place_id": "1222030682",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 경산삼성현로점",
+      "address": "경상북도 경산시 사동 300-5 한마음정육식당 경산삼성현로점",
+      "place_id": "1973521333",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 고창읍내점",
+      "address": "전북특별자치도 고창군 고창읍 읍내리 374-2 한마음정육식당 내점",
+      "place_id": "1148751976",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 공주신관점",
+      "address": "충청남도 공주시 신관동 653-10",
+      "place_id": "1619122554",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 공주월송점",
+      "address": "충청남도 공주시 금흥동 643 3층 301호",
+      "place_id": "2054669989",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 관저점",
+      "address": "대전광역시 서구 관저동 1270 1층 한마음정육식당 관저점",
+      "place_id": "1854598652",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 광명점",
+      "address": "경기도 광명시 하안동 233-5 한마음정육식당 광명점",
+      "place_id": "1428606878",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 광주곤지암점",
+      "address": "경기도 광주시 곤지암읍 삼리 400-13 1층 한마음정육식당 광주곤지암점",
+      "place_id": "1835562765",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 광주운남점",
+      "address": "전남광주통합특별시 광산구 운남동 387-30 베스트원빌딩 2층 201호",
+      "place_id": "1523600373",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 광주하남점",
+      "address": "전남광주통합특별시 광산구 하남동 968 2층",
+      "place_id": "1265276878",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 구의강변점",
+      "address": "서울특별시 광진구 구의동 593-13 1층",
+      "place_id": "1619047366",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 금산점",
+      "address": "충청남도 금산군 금산읍 상리 33-9 2층",
+      "place_id": "1857006318",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 김포장기점",
+      "address": "경기도 김포시 장기동 1850 2층",
+      "place_id": "1028335844",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 나주이창점",
+      "address": "전남광주통합특별시 나주시 이창동 751-3",
+      "place_id": "1125102110",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 남양주다산1호점",
+      "address": "경기도 남양주시 다산동 6113 1층 114호, 115호, 116호, 117호",
+      "place_id": "1282316140",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 남양주별내점",
+      "address": "경기도 남양주시 별내동 998 2층 204, 205, 206호",
+      "place_id": "1747608515",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 노량진역점",
+      "address": "서울특별시 동작구 노량진동 67-11 2층",
+      "place_id": "1699710729",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 논산내동점",
+      "address": "충청남도 논산시 취암동 103-1 골든타워상가 111호~115호",
+      "place_id": "1198467097",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 당진수청점",
+      "address": "충청남도 당진시 수청동 1449 1층",
+      "place_id": "1642627962",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 당진읍내점",
+      "address": "충청남도 당진시 읍내동 312 3층",
+      "place_id": "1438407628",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전가수원점",
+      "address": "대전광역시 서구 도안동 1755 1층",
+      "place_id": "1982633787",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전가양점",
+      "address": "대전광역시 동구 가양동 414-11",
+      "place_id": "1484910346",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전관평점",
+      "address": "대전광역시 유성구 관평동 748 지상2층 한마음정육식당",
+      "place_id": "2062348200",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전도룡점",
+      "address": "대전광역시 유성구 도룡동 4-8 상가동 114호, 117호",
+      "place_id": "2026848281",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전둔곡점",
+      "address": "대전광역시 유성구 둔곡동 428-3 둔곡프라자 301호",
+      "place_id": "1166320043",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전문지점",
+      "address": "대전광역시 유성구 문지동 651-1 1층",
+      "place_id": "1041170069",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전반석점",
+      "address": "대전광역시 유성구 반석동 638-1 2층",
+      "place_id": "1215493384",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전송촌직영점",
+      "address": "대전광역시 대덕구 송촌동 475-2",
+      "place_id": "1676225408",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전시청점",
+      "address": "대전광역시 서구 둔산동 1488-1 1층",
+      "place_id": "1371421321",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전월평점",
+      "address": "대전광역시 서구 월평동 523 1층 101호",
+      "place_id": "1070034634",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전중리점",
+      "address": "대전광역시 대덕구 중리동 165-24 1층",
+      "place_id": "1061306119",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대전판암점",
+      "address": "대전광역시 동구 판암동 840 1층",
+      "place_id": "1056838274",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 대흥점",
+      "address": "대전광역시 중구 대흥동 316-1 1층 한마음정육식당",
+      "place_id": "403015173",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 덕소점",
+      "address": "경기도 남양주시 와부읍 월문리 1052-10 한마음 정육식당",
+      "place_id": "1059274601",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 도담점",
+      "address": "세종특별자치시 도담동 736 보석빌딩 1층",
+      "place_id": "1145799138",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 도안점",
+      "address": "대전광역시 서구 도안동 849 203호 한마음정육식당 도안점",
+      "place_id": "1171022513",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 동탄북광장점",
+      "address": "경기도 화성시 동탄구 반송동 90-2 서해더블루팍스 1층 107호",
+      "place_id": "1641989957",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 동탄점",
+      "address": "경기도 화성시 동탄구 영천동 688-1 1층",
+      "place_id": "1588572953",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 동탄호수공원점",
+      "address": "경기도 화성시 동탄구 장지동 929-1 2층 201호~209호",
+      "place_id": "1771506516",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 동해점",
+      "address": "강원특별자치도 동해시 동회동 76-1 영진빌딩 1층",
+      "place_id": "1729372517",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 목동신정점",
+      "address": "서울특별시 양천구 신정동 1032-8 2층",
+      "place_id": "1489349397",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 보령명천점",
+      "address": "충청남도 보령시 명천동 1200 3층 303, 304, 305, 306, 307호",
+      "place_id": "1064011262",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 복수점",
+      "address": "대전광역시 서구 복수동 896 1층",
+      "place_id": "1722879261",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 봉담점",
+      "address": "경기도 화성시 효행구 봉담읍 상리 686-3 2층 204, 205호",
+      "place_id": "1435947185",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 분평점",
+      "address": "충청북도 청주시 서원구 분평동 165-1 3층 한마음정육식당 분평점",
+      "place_id": "1398612207",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 서산호수공원점",
+      "address": "충청남도 서산시 예천동 1261-3",
+      "place_id": "1991555793",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 서울 신대방역점",
+      "address": "서울특별시 관악구 신림동 517-4",
+      "place_id": "1552120407",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 성화점",
+      "address": "충청북도 청주시 서원구 죽림동 77-7 한마음정육식당 성화점",
+      "place_id": "1642973890",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 세종 대평점",
+      "address": "세종특별자치시 대평동 665 시드니힐 207호",
+      "place_id": "1732440565",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 세종다정점",
+      "address": "세종특별자치시 다정동 943 3층 303호, 304호",
+      "place_id": "1121858837",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 세종보람점",
+      "address": "세종특별자치시 보람동 712 201호~205호",
+      "place_id": "1134683212",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 세종해밀점",
+      "address": "세종특별자치시 해밀동 산5-8 201호",
+      "place_id": "1853301820",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 송도타임스페이스점",
+      "address": "인천광역시 연수구 송도동 8-21 B동 2층 205호~208호",
+      "place_id": "1004252257",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 수원오목천점",
+      "address": "경기도 수원시 권선구 오목천동 444-26 1층",
+      "place_id": "1629544805",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 시흥 대야점",
+      "address": "경기도 시흥시 대야동 579-4 2층",
+      "place_id": "1294890054",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 시흥 은계점",
+      "address": "경기도 시흥시 은행동 651 에듀타운 2층 202~205호",
+      "place_id": "1390072217",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 시흥목감역점",
+      "address": "경기도 시흥시 조남동 711 로얄팰리스4차 2층",
+      "place_id": "1055454069",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 시흥배곧타운점",
+      "address": "경기도 시흥시 배곧동 117 1층 110, 111, 112, 116호",
+      "place_id": "1595643475",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 신검단중앙역점",
+      "address": "인천광역시 검단구 불로동 1006-14 109호~110호",
+      "place_id": "2057911628",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 신탄진점",
+      "address": "대전광역시 대덕구 평촌동 226-9 1층",
+      "place_id": "1241478205",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 아산배방점",
+      "address": "충청남도 아산시 배방읍 공수리 1588 1층 101호",
+      "place_id": "1747942252",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 안산상록점",
+      "address": "경기도 안산시 상록구 부곡동 662-8 1층",
+      "place_id": "1144727187",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 양산석산점",
+      "address": "경상남도 양산시 동면 석산리 1452-3 2층 201호, 202호",
+      "place_id": "1192340684",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 양주옥정점",
+      "address": "경기도 양주시 옥정동 963-15 203호, 204호",
+      "place_id": "1954251991",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 어은점",
+      "address": "대전광역시 유성구 어은동 115-1 1층",
+      "place_id": "1060647394",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 영등포도림점",
+      "address": "서울특별시 영등포구 도림동 250-19 1층",
+      "place_id": "1341138229",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 영종하늘도시점",
+      "address": "인천광역시 영종구 중산동 1885-11 202~205호",
+      "place_id": "2069269915",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 영통점",
+      "address": "경기도 수원시 영통구 영통동 983-2",
+      "place_id": "1652040229",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 오송2산단점",
+      "address": "충청북도 청주시 흥덕구 오송읍 봉산리 987 3층 304호, 305호, 306호, 307호",
+      "place_id": "1416318247",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 오창2산단점",
+      "address": "충청북도 청주시 청원구 오창읍 주성리 587 1층",
+      "place_id": "1532330391",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 오창호수점",
+      "address": "충청북도 청주시 청원구 오창읍 양청리 752-6 2층",
+      "place_id": "1159764467",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 와동점",
+      "address": "대전광역시 대덕구 와동 2-7",
+      "place_id": "1417466642",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 용인송전점",
+      "address": "경기도 용인시 처인구 이동읍 송전리 778-5",
+      "place_id": "1131270416",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 용인흥덕점",
+      "address": "경기도 용인시 기흥구 영덕동 975-2 203호, 204호, 205호",
+      "place_id": "1831649609",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 울산신정점",
+      "address": "울산광역시 남구 신정동 1833-1 2층",
+      "place_id": "1400283604",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 원주기업도시점",
+      "address": "강원특별자치도 원주시 지정면 가곡리 1350-1 201호~205호",
+      "place_id": "1403741180",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 원주혁신도시점",
+      "address": "강원특별자치도 원주시 반곡동 1880-10 1층 103호 한마음정육식당",
+      "place_id": "2033626352",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 유천점",
+      "address": "대전광역시 중구 유천동 307-3 1층",
+      "place_id": "1039276695",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 은평구청점",
+      "address": "서울특별시 은평구 녹번동 182 1층 104호",
+      "place_id": "1368618757",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 의정부고산지구점",
+      "address": "경기도 의정부시 산곡동 686-1 3층 301호, 302호, 303호",
+      "place_id": "1435067042",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 의정부장암점",
+      "address": "경기도 의정부시 장암동 135-34 2층",
+      "place_id": "1789236001",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 인천계양점",
+      "address": "인천광역시 계양구 작전동 899-5 한마음정육식당 인천계양점",
+      "place_id": "1667359632",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 인천서창점",
+      "address": "인천광역시 남동구 서창동 687-3 A동 2층 한마음정육식당 인천서창점",
+      "place_id": "1214906693",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 장곡역점",
+      "address": "경기도 시흥시 장곡동 893-2 2층",
+      "place_id": "1895474204",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 전북 정읍점",
+      "address": "전북특별자치도 정읍시 상동 312-9",
+      "place_id": "1230755964",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 전주반월점",
+      "address": "전북특별자치도 전주시 덕진구 반월동 234-57 1층",
+      "place_id": "1580651071",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 전주서신점",
+      "address": "전북특별자치도 전주시 완산구 서신동 967-5 1층 102호, 105호",
+      "place_id": "1972142289",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 전주송천에코시티점",
+      "address": "전북특별자치도 전주시 덕진구 송천동2가 1422 3층 301~304, 334, 305, 329, 330호",
+      "place_id": "2086804226",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 제천장락점",
+      "address": "충청북도 제천시 장락동 542-5 한마음정육식당 제천장락점",
+      "place_id": "1604323070",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 조치원죽림점",
+      "address": "세종특별자치시 조치원읍 죽림리 4-6 1층 한마음정육식당 조치원죽림점",
+      "place_id": "1015197190",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 죽동점",
+      "address": "대전광역시 유성구 죽동 704-4 2층 201, 202호",
+      "place_id": "1132217181",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 중촌점",
+      "address": "대전광역시 중구 중촌동 20-14 1, 2층",
+      "place_id": "1719431130",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 진주혁신도시점",
+      "address": "경상남도 진주시 충무공동 225-3 2층 203호, 204호 한마음정육식당 진주혁신도시점",
+      "place_id": "1803300449",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 천안신부점",
+      "address": "충청남도 천안시 동남구 신부동 465-1 1층",
+      "place_id": "1789923660",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 천안신불당점",
+      "address": "충청남도 천안시 서북구 불당동 1524 2층 201호, 202호, 204호",
+      "place_id": "1197628423",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 천안통정점",
+      "address": "충청남도 천안시 동남구 신방동 1899 1층 102호",
+      "place_id": "1558737805",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 청주동남점",
+      "address": "충청북도 청주시 상당구 용암동 3071 2층",
+      "place_id": "1547224303",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 춘천퇴계점",
+      "address": "강원특별자치도 춘천시 퇴계동 178-3 2층",
+      "place_id": "2075769796",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 충북 옥천점",
+      "address": "충청북도 옥천군 옥천읍 마암리 62-1 한마음정육식당 충북옥천점",
+      "place_id": "1347854163",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 충북대점",
+      "address": "충청북도 청주시 서원구 사창동 440 1층 한마음정육식당",
+      "place_id": "779228243",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 충주호암점",
+      "address": "충청북도 충주시 호암동 1187 2층",
+      "place_id": "1856697348",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 칠곡3지구점",
+      "address": "대구광역시 북구 동천동 953-1 제2층 203, 204, 205, 206호",
+      "place_id": "1349070488",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 탄방점",
+      "address": "대전광역시 서구 탄방동 75-5 2층",
+      "place_id": "2036911013",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 탑립점",
+      "address": "대전광역시 유성구 탑립동 601 1층 한마음정육식당",
+      "place_id": "1047737483",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 태안동문점",
+      "address": "충청남도 태안군 태안읍 동문리 893-2 한마음정육식당 태안동문점",
+      "place_id": "1905246417",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 파주야당역점",
+      "address": "경기도 파주시 야당동 1059 2층",
+      "place_id": "1336947770",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 판교테크노벨리점",
+      "address": "경기도 성남시 분당구 삼평동 670 107호, 108호, 109호, 110호",
+      "place_id": "1252363902",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 평택안중점",
+      "address": "경기도 평택시 안중읍 현화리 547",
+      "place_id": "1903775404",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 평택용이점",
+      "address": "경기도 평택시 용이동 596-2 1층",
+      "place_id": "1568823280",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 포곡점",
+      "address": "경기도 용인시 처인구 포곡읍 둔전리 12-1 한마음정육식당 포곡점",
+      "place_id": "1260917979",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 하남감일점",
+      "address": "경기도 하남시 감이동 512 2층 203~206호",
+      "place_id": "1956574009",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 하남미사점",
+      "address": "경기도 하남시 망월동 1143-1 3층 333, 334, 335호",
+      "place_id": "2015604890",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 홍성내포점",
+      "address": "충청남도 홍성군 홍북읍 신경리 560 2층 208, 209호",
+      "place_id": "1495624279",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 화성동탄능동점",
+      "address": "경기도 화성시 동탄구 능동 1052-6 1층, 2층",
+      "place_id": "1006980903",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 화성팔탄점",
+      "address": "경기도 화성시 만세구 팔탄면 매곡리 115-5",
+      "place_id": "2098681941",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 화성향남2지구점",
+      "address": "경기도 화성시 만세구 향남읍 하길리 1471-4 2층 207호, 208호, 209호",
+      "place_id": "1053635879",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    },
+    {
+      "name": "한마음정육식당 효동점",
+      "address": "대전광역시 동구 효동 272-13 1동 102호",
+      "place_id": "1729128609",
+      "place_type": "restaurant",
+      "source": "pcmap-apollo"
+    }
+  ]
 }
