@@ -3,6 +3,7 @@ import html
 import json
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -13,66 +14,26 @@ from app.naver_crawler import NaverPlaceCrawler
 KST = ZoneInfo("Asia/Seoul")
 OUT_DIR = Path("site/data/brands")
 INDEX = OUT_DIR / "index.json"
-NAVER_MAP_AREA = '네이버지도 검색목록'
-REGIONS = {
-    "서울": (126.9780, 37.5665), "부산": (129.0756, 35.1796), "대구": (128.6014, 35.8714),
-    "인천": (126.7052, 37.4563), "광주": (126.8526, 35.1595), "대전": (127.3845, 36.3504),
-    "울산": (129.3114, 35.5384), "세종": (127.2890, 36.4800), "경기": (127.0095, 37.2749),
-    "강원": (127.7298, 37.8854), "충북": (127.4917, 36.6357), "충남": (126.6728, 36.6588),
-    "전북": (127.1088, 35.8203), "전남": (126.4629, 34.8161), "경북": (128.5056, 36.5760),
-    "경남": (128.6919, 35.2383), "제주": (126.5312, 33.4996),
-}
-# 네이버 지도는 검색 좌표/지역어에 따라 결과가 달라지므로 시군구 단위 질의를 병행한다.
-SEARCH_AREAS = [
-    "서울 강남", "서울 서초", "서울 송파", "서울 강동", "서울 광진", "서울 성동", "서울 동대문", "서울 중랑",
-    "서울 성북", "서울 강북", "서울 도봉", "서울 노원", "서울 은평", "서울 서대문", "서울 마포", "서울 양천",
-    "서울 강서", "서울 구로", "서울 금천", "서울 영등포", "서울 동작", "서울 관악", "서울 용산", "서울 중구", "서울 종로",
-    "경기 수원", "경기 성남", "경기 용인", "경기 고양", "경기 화성", "경기 안산", "경기 안양", "경기 부천",
-    "경기 남양주", "경기 평택", "경기 시흥", "경기 김포", "경기 파주", "경기 의정부", "경기 광주", "경기 하남",
-    "경기 광명", "경기 군포", "경기 오산", "경기 이천", "경기 양주", "경기 구리", "경기 포천", "경기 의왕",
-    "인천 중구", "인천 남동", "인천 부평", "인천 서구", "인천 연수", "부산 해운대", "부산 부산진", "부산 동래", "부산 사하", "부산 북구",
-    "대구 수성", "대구 달서", "대구 북구", "대전 서구", "대전 유성", "광주 북구", "광주 서구", "울산 남구", "울산 북구", "세종",
-    "강원 춘천", "강원 원주", "강원 강릉", "강원 속초", "충북 청주", "충북 충주", "충북 제천", "충남 천안", "충남 아산", "충남 서산",
-    "전북 전주", "전북 군산", "전북 익산", "전북 정읍", "전남 목포", "전남 순천", "전남 여수", "전남 광양",
-    "경북 포항", "경북 구미", "경북 경주", "경북 안동", "경북 경산", "경남 창원", "경남 김해", "경남 양산", "경남 진주", "경남 거제",
-    "제주 제주시", "제주 서귀포",
+NAVER_MAP_AREA = "네이버플레이스 검색"
+REGION_COORDS = [
+    ("서울", 126.9780, 37.5665), ("부산", 129.0756, 35.1796), ("대구", 128.6014, 35.8714),
+    ("인천", 126.7052, 37.4563), ("광주", 126.8526, 35.1595), ("대전", 127.3845, 36.3504),
+    ("울산", 129.3114, 35.5384), ("세종", 127.2890, 36.4800), ("경기", 127.0095, 37.2749),
+    ("강원", 127.7298, 37.8854), ("충북", 127.4917, 36.6357), ("충남", 126.6728, 36.6588),
+    ("전북", 127.1088, 35.8203), ("전남", 126.4629, 34.8161), ("경북", 128.5056, 36.5760),
+    ("경남", 128.6919, 35.2383), ("제주", 126.5312, 33.4996),
 ]
+SEARCH_AREAS = [NAVER_MAP_AREA] + [name for name, _, _ in REGION_COORDS]
 
 
 def slugify(text: str) -> str:
     return re.sub(r"[^0-9A-Za-z가-힣_-]+", "-", text.strip()).strip("-") or "brand"
 
 
-def review_date(value):
-    if not value:
-        return None
-    s = str(value).strip()
-    today = datetime.now(KST).date()
-    if "오늘" in s or re.search(r"\d+시간 전|\d+분 전", s):
-        return today
-    if "어제" in s:
-        return today - timedelta(days=1)
-    m = re.search(r"(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})", s)
-    if m:
-        try:
-            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=KST).date()
-        except ValueError:
-            return None
-    m = re.search(r"(\d{1,2})일 전", s)
-    if m:
-        return today - timedelta(days=int(m.group(1)))
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=KST)
-        return dt.astimezone(KST).date()
-    except Exception:
-        return None
-
-
-def recent(reviews, days):
-    start = datetime.now(KST).date() - timedelta(days=days - 1)
-    return [r for r in reviews if (review_date(r.get("created_at")) or datetime.min.date()) >= start]
+def _text_quality(value: str) -> int:
+    hangul = sum("\uac00" <= ch <= "\ud7a3" for ch in value)
+    mojibake = sum(ch in "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ�" for ch in value)
+    return hangul * 3 - mojibake * 2
 
 
 def repair_mojibake(value: str) -> str:
@@ -88,38 +49,32 @@ def repair_mojibake(value: str) -> str:
     return best
 
 
-def _text_quality(value: str) -> int:
-    hangul = sum("\uac00" <= ch <= "\ud7a3" for ch in value)
-    mojibake = sum(ch in 'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ�' for ch in value)
-    return hangul * 3 - mojibake * 2
-
-
-def decode_js(s: str) -> str:
-    decoded = html.unescape(s.replace("\\u002F", "/").replace("\\u0026", "&").replace("\\/", "/"))
+def decode_js(value: str) -> str:
+    decoded = html.unescape(str(value or "").replace("\\u002F", "/").replace("\\u0026", "&").replace("\\/", "/"))
     return repair_mojibake(decoded)
 
 
 def clean_place_name(value: str) -> str:
-    value = decode_js(str(value or ""))
-    value = re.sub(r"<[^>]+>", "", value)
-    return re.sub(r"\s+", " ", value).strip()
+    text = decode_js(value)
+    text = re.sub(r"<[^>]+>", "", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
-def is_generic_place_name(name: str, brand: str) -> bool:
-    return clean_place_name(name) == clean_place_name(brand)
+def clean_address(value: str) -> str:
+    return clean_place_name(value)
 
 
-def better_place_name(current: str, candidate: str | None, brand: str) -> str:
+def better_place_name(current: str | None, candidate: str | None, brand: str) -> str:
     current = clean_place_name(current or brand)
     candidate = clean_place_name(candidate or "")
-    if candidate and brand.lower() in candidate.lower() and (is_generic_place_name(current, brand) or len(candidate) > len(current)):
+    if candidate and brand.lower() in candidate.lower() and (current == brand or len(candidate) > len(current)):
         return candidate
     return current
 
 
 def better_place_address(current: str | None, candidate: str | None) -> str:
-    current = clean_place_name(current or "")
-    candidate = clean_place_name(candidate or "")
+    current = clean_address(current or "")
+    candidate = clean_address(candidate or "")
     if not candidate:
         return current
     if not current or _text_quality(candidate) > _text_quality(current):
@@ -133,203 +88,77 @@ def merge_store(stores: dict, store: dict, brand: str):
     place_id = str(store.get("place_id") or "").strip()
     if not place_id:
         return
-    cleaned = {
-        **store,
+    row = {
         "name": clean_place_name(store.get("name") or brand),
-        "address": clean_place_name(store.get("address") or ""),
+        "address": clean_address(store.get("address") or ""),
         "place_id": place_id,
         "place_type": str(store.get("place_type") or "restaurant").lower(),
+        "source": store.get("source") or "naver-place",
     }
     current = stores.get(place_id)
     if not current:
-        stores[place_id] = cleaned
+        stores[place_id] = row
         return
-    current["name"] = better_place_name(current.get("name"), cleaned.get("name"), brand)
-    current["address"] = better_place_address(current.get("address"), cleaned.get("address"))
-    current["place_type"] = current.get("place_type") or cleaned.get("place_type") or "restaurant"
-
-
-def place_home_details(crawler: NaverPlaceCrawler, place_id: str, place_type: str, brand: str):
-    names = []
-    address = None
-    for ptype in dict.fromkeys([place_type or "restaurant", "restaurant", "place", "cafe"]):
-        url = f"https://m.place.naver.com/{ptype}/{place_id}/home"
-        try:
-            r = crawler.session.get(url, timeout=crawler.timeout, headers={"Referer": "https://m.place.naver.com/"})
-        except Exception:
-            continue
-        if r.status_code != 200:
-            continue
-        r.encoding = "utf-8"
-        body = decode_js(r.text)
-        for pattern in [
-            r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
-            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
-            r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
-            r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
-            r'"title"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
-        ]:
-            for match in re.finditer(pattern, body):
-                name = clean_place_name(match.group(1).split(":")[0])
-                if brand.lower() in name.lower() and name not in names:
-                    names.append(name)
-        for pattern in [r'"(?:roadAddress|address|jibunAddress)"\s*:\s*"([^"]+)"']:
-            match = re.search(pattern, body)
-            if match:
-                address = clean_place_name(match.group(1))
-                break
-        if names or address:
-            break
-    names.sort(key=lambda x: (x == brand, -len(x)))
-    return (names[0] if names else None), address
-
-
-def enrich_place_row(crawler: NaverPlaceCrawler, row: dict, brand: str):
-    place_id = str(row.get("place_id") or "").strip()
-    if not place_id:
-        return row
-    home_name, home_address = place_home_details(crawler, place_id, row.get("place_type") or "restaurant", brand)
-    return {
-        **row,
-        "name": better_place_name(row.get("name"), home_name, brand),
-        "address": better_place_address(row.get("address"), home_address),
-    }
-
-
-def search_result_place_details(crawler: NaverPlaceCrawler, query: str, brand: str, place_id: str):
-    url = f"https://search.naver.com/search.naver?query={quote(query)}"
-    try:
-        r = crawler.session.get(url, timeout=crawler.timeout)
-    except Exception:
-        return None, None
-    if r.status_code != 200:
-        return None, None
-    body = decode_js(r.text)
-    pos = body.find(str(place_id))
-    if pos < 0:
-        pos = 0
-    block = body[max(0, pos - 2500): min(len(body), pos + 3500)]
-    names = []
-    for pattern in [
-        r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
-        r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
-        r'"title"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
-    ]:
-        for match in re.finditer(pattern, block):
-            name = clean_place_name(match.group(1))
-            if brand.lower() in name.lower() and name not in names:
-                names.append(name)
-    names.sort(key=lambda x: (x == brand, -len(x)))
-    address = None
-    for pattern in [r'"(?:roadAddress|address|jibunAddress)"\s*:\s*"([^"]+)"']:
-        match = re.search(pattern, block)
-        if match:
-            address = clean_place_name(match.group(1))
-            break
-    return (names[0] if names else None), address
+    current["name"] = better_place_name(current.get("name"), row.get("name"), brand)
+    current["address"] = better_place_address(current.get("address"), row.get("address"))
+    current["place_type"] = current.get("place_type") or row.get("place_type") or "restaurant"
 
 
 def extract_map_rows(text: str, brand: str):
     text = decode_js(text)
-    out, seen = [], set()
+    rows, seen = [], set()
     patterns = [
-        re.compile(r'"id"\s*:\s*"?([0-9]{5,})"?'),
-        re.compile(r'"placeId"\s*:\s*"?([0-9]{5,})"?'),
+        re.compile(r'"(?:id|placeId|businessId)"\s*:\s*"?([0-9]{5,})"?'),
         re.compile(r'/place/([0-9]{5,})'),
-        re.compile(r'/search/[^"?#]+/place/([0-9]{5,})'),
         re.compile(r'entry/place/([0-9]{5,})'),
+        re.compile(r'(?:placeId|entryId)[="\':]+([0-9]{5,})'),
     ]
-    candidates = []
+    matches = []
     for pattern in patterns:
-        candidates.extend(pattern.finditer(text))
-    candidates.sort(key=lambda m: m.start())
-    for m in candidates:
-        pid = m.group(1)
-        if pid in seen:
+        matches.extend(pattern.finditer(text))
+    matches.sort(key=lambda match: match.start())
+    for match in matches:
+        place_id = match.group(1)
+        if place_id in seen:
             continue
-        block = text[max(0, m.start() - 1500): min(len(text), m.start() + 2500)]
+        block = text[max(0, match.start() - 1800): min(len(text), match.start() + 2800)]
         if brand.lower() not in block.lower():
             continue
-        name = brand
-        candidates = []
-        name_patterns = [
+        names = []
+        for pattern in [
             r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
             r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
             r'>\s*([^<>"\']*' + re.escape(brand) + r'[^<>"\']*)\s*<',
-        ]
-        for p in name_patterns:
-            for mm in re.finditer(p, block):
-                candidate = clean_place_name(mm.group(1))
-                if brand.lower() in candidate.lower() and candidate not in candidates:
-                    candidates.append(candidate)
-        if candidates:
-            candidates.sort(key=lambda x: (x == brand, -len(x)))
-            name = candidates[0]
+        ]:
+            for item in re.finditer(pattern, block):
+                name = clean_place_name(item.group(1))
+                if brand.lower() in name.lower() and name not in names:
+                    names.append(name)
+        names.sort(key=lambda value: (value == brand, -len(value)))
         address = ""
-        for p in [r'"roadAddress"\s*:\s*"([^"]+)"', r'"address"\s*:\s*"([^"]+)"']:
-            mm = re.search(p, block)
-            if mm:
-                address = decode_js(mm.group(1)).strip()
+        for pattern in [r'"(?:roadAddress|address|jibunAddress)"\s*:\s*"([^"]+)"']:
+            item = re.search(pattern, block)
+            if item:
+                address = clean_address(item.group(1))
                 break
-        seen.add(pid)
-        out.append({"name": name, "address": address, "place_id": pid, "place_type": "restaurant"})
-    return out
-
-
-def _map_search_page(crawler: NaverPlaceCrawler, query: str, brand: str):
-    url = f"https://map.naver.com/p/search/{quote(query)}"
-    headers = {
-        "Referer": "https://map.naver.com/",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0"),
-    }
-    try:
-        r = crawler.session.get(url, timeout=20, headers=headers)
-    except Exception:
-        return []
-    if r.status_code != 200:
-        return []
-    r.encoding = "utf-8"
-    return extract_map_rows(r.text, brand)
-
-
-def search_naver_map_listing(crawler: NaverPlaceCrawler, brand: str):
-    found = {}
-    query = brand.strip()
-    for row in _map_search_page(crawler, query, brand):
-        merge_store(found, row, brand)
-    for row in _api_search(crawler, query, brand, REGIONS['서울']):
-        merge_store(found, row, brand)
-    try:
-        match = crawler.resolve_place(query)
-        detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
-        name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
-        merge_store(found, {
-            "name": name,
-            "address": getattr(match, "address", None) or detail_address or "",
-            "place_id": match.place_id,
-            "place_type": match.place_type or "restaurant",
-        }, brand)
-    except Exception:
-        pass
-    return list(found.values())
+        seen.add(place_id)
+        rows.append({"name": names[0] if names else brand, "address": address, "place_id": place_id, "place_type": "restaurant", "source": "map-page"})
+    return rows
 
 
 def _walk_place_rows(obj, brand: str, out: dict):
     if isinstance(obj, dict):
         raw_name = obj.get("name") or obj.get("businessName") or obj.get("title") or obj.get("displayName")
-        if isinstance(raw_name, dict):
-            name = raw_name.get("text") or raw_name.get("name") or raw_name.get("title")
-        else:
-            name = raw_name
-        pid = obj.get("id") or obj.get("placeId") or obj.get("businessId")
-        if isinstance(name, str) and brand.lower() in html.unescape(name).lower() and str(pid or "").isdigit():
+        name = raw_name.get("text") if isinstance(raw_name, dict) else raw_name
+        place_id = obj.get("id") or obj.get("placeId") or obj.get("businessId")
+        if isinstance(name, str) and brand.lower() in html.unescape(name).lower() and str(place_id or "").isdigit():
             address = obj.get("roadAddress") or obj.get("address") or obj.get("jibunAddress") or ""
-            out[str(pid)] = {
+            out[str(place_id)] = {
                 "name": clean_place_name(name),
-                "address": clean_place_name(address),
-                "place_id": str(pid),
+                "address": clean_address(address),
+                "place_id": str(place_id),
                 "place_type": str(obj.get("businessType") or obj.get("type") or "restaurant").lower(),
+                "source": "map-api",
             }
         for value in obj.values():
             _walk_place_rows(value, brand, out)
@@ -338,76 +167,102 @@ def _walk_place_rows(obj, brand: str, out: dict):
             _walk_place_rows(value, brand, out)
 
 
-def _api_search(crawler: NaverPlaceCrawler, query: str, brand: str, coord):
+def _api_search(crawler: NaverPlaceCrawler, brand: str, coord):
     lon, lat = coord
-    referer = f"https://map.naver.com/p/search/{quote(query)}"
-    headers = {"Referer": referer, "Accept": "application/json, text/plain, */*", "Origin": "https://map.naver.com", "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0")}
+    headers = {
+        "Referer": f"https://map.naver.com/p/search/{quote(brand)}",
+        "Accept": "application/json, text/plain, */*",
+        "Origin": "https://map.naver.com",
+        "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0"),
+    }
     found = {}
     try:
-        r = crawler.session.get("https://map.naver.com/p/api/search/allSearch", params={"query": query, "type": "all", "searchCoord": f"{lon};{lat}", "boundary": ""}, timeout=20, headers=headers)
-        if r.status_code == 200:
-            try:
-                _walk_place_rows(r.json(), brand, found)
-            except ValueError:
-                r.encoding = "utf-8"
-                for row in extract_map_rows(r.text, brand):
-                    found[row["place_id"]] = row
+        response = crawler.session.get(
+            "https://map.naver.com/p/api/search/allSearch",
+            params={"query": brand, "type": "all", "searchCoord": f"{lon};{lat}", "boundary": ""},
+            timeout=crawler.timeout,
+            headers=headers,
+        )
     except Exception:
-        pass
+        return []
+    if response.status_code != 200:
+        return []
+    try:
+        _walk_place_rows(response.json(), brand, found)
+    except ValueError:
+        response.encoding = "utf-8"
+        for row in extract_map_rows(response.text, brand):
+            found[row["place_id"]] = row
     return list(found.values())
 
 
-def _coord_for_area(area: str):
-    prefix = area.split()[0]
-    return REGIONS.get(prefix, REGIONS["\uC11C\uC6B8"])
+def _map_page_search(crawler: NaverPlaceCrawler, brand: str):
+    url = f"https://map.naver.com/p/search/{quote(brand)}"
+    headers = {"Referer": "https://map.naver.com/", "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0")}
+    try:
+        response = crawler.session.get(url, timeout=crawler.timeout, headers=headers)
+    except Exception:
+        return []
+    if response.status_code != 200:
+        return []
+    response.encoding = "utf-8"
+    return extract_map_rows(response.text, brand)
 
 
 def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
     if area == NAVER_MAP_AREA:
-        return search_naver_map_listing(crawler, brand)
-    query = f"{brand} {area}".strip()
-    found = {}
-    for row in _api_search(crawler, query, brand, _coord_for_area(area)):
-        merge_store(found, row, brand)
-    # Keep discovery fast: defer per-place home-page checks to the review step.
-    try:
-        match = crawler.resolve_place(query)
-        detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
-        candidate_name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
-        candidate_address = getattr(match, "address", None) or detail_address or area
-        fallback_row = {
-            "name": clean_place_name(candidate_name or brand),
-            "address": clean_place_name(candidate_address or area),
-            "place_id": match.place_id,
-            "place_type": match.place_type or "restaurant",
-        }
-        current = found.get(match.place_id)
-        if current:
-            current["name"] = better_place_name(current.get("name"), fallback_row["name"], brand)
-            current["address"] = better_place_address(current.get("address"), fallback_row["address"])
-            current["place_type"] = current.get("place_type") or fallback_row["place_type"]
-        else:
-            found[match.place_id] = fallback_row
-    except Exception:
-        pass
-    return list(found.values())
+        return _map_page_search(crawler, brand)
+    coord = next(((lon, lat) for name, lon, lat in REGION_COORDS if name == area), (126.9780, 37.5665))
+    return _api_search(crawler, brand, coord)
+
+
+def search_brand_places(brand: str, concurrency: int = 4):
+    brand = brand.strip()
+    if len(brand) < 2:
+        raise ValueError("브랜드명을 2글자 이상 입력하세요")
+    stores = {}
+    workers = max(1, min(6, int(concurrency or 4), len(SEARCH_AREAS)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {executor.submit(search_one_area, NaverPlaceCrawler(timeout=18, pause=0.05), brand, area): area for area in SEARCH_AREAS}
+        for future in as_completed(futures):
+            try:
+                for row in future.result():
+                    merge_store(stores, row, brand)
+            except Exception:
+                continue
+    return sorted(stores.values(), key=lambda row: (row.get("name", ""), row.get("address", "")))
 
 
 def discover_stores(crawler: NaverPlaceCrawler, brand: str):
     stores = {}
-    for row in search_naver_map_listing(crawler, brand):
-        merge_store(stores, row, brand)
-    # 광역 단위 지도검색
-    for query, coord in [(brand, REGIONS["서울"])] + [(f"{brand} {region}", coord) for region, coord in REGIONS.items()]:
-        for row in _api_search(crawler, query, brand, coord):
-            merge_store(stores, row, brand)
-        time.sleep(0.08)
-    # 시군구 단위 지도검색 + 통합검색을 항상 추가해 결과 누락을 줄인다.
     for area in SEARCH_AREAS:
         for row in search_one_area(crawler, brand, area):
             merge_store(stores, row, brand)
         time.sleep(0.06)
-    return sorted(stores.values(), key=lambda x: (x.get("name", ""), x.get("address", "")))
+    return sorted(stores.values(), key=lambda row: (row.get("name", ""), row.get("address", "")))
+
+
+def review_date(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    today = datetime.now(KST).date()
+    if "오늘" in text or re.search(r"\d+시간 전|\d+분 전", text):
+        return today
+    if "어제" in text:
+        return today - timedelta(days=1)
+    match = re.search(r"(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})", text)
+    if match:
+        try:
+            return datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)), tzinfo=KST).date()
+        except ValueError:
+            return None
+    return None
+
+
+def recent(reviews, days):
+    start = datetime.now(KST).date() - timedelta(days=max(1, days) - 1)
+    return [row for row in reviews if (review_date(row.get("created_at")) or datetime.min.date()) >= start]
 
 
 def load_index():
@@ -420,47 +275,26 @@ def load_index():
 
 
 def save_index(brand, slug, payload):
-    idx = load_index()
-    rows = [x for x in idx.get("brands", []) if x.get("slug") != slug]
-    rows.append({"name": brand, "slug": slug, "generated_at": payload["generated_at"], "stores_total": payload["stores_total"], "stores_ok": payload["stores_ok"], "stores_failed": payload["stores_failed"], "window_days": payload["window_days"]})
-    rows.sort(key=lambda x: x.get("name", ""))
+    rows = [row for row in load_index().get("brands", []) if row.get("slug") != slug]
+    rows.append({"name": brand, "slug": slug, "generated_at": payload["generated_at"], "stores_total": payload["stores_total"]})
+    rows.sort(key=lambda row: row.get("name", ""))
     INDEX.parent.mkdir(parents=True, exist_ok=True)
     INDEX.write_text(json.dumps({"brands": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main(brand: str, days: int = 7):
-    brand = brand.strip()
-    if len(brand) < 2:
-        raise SystemExit("브랜드명을 2글자 이상 입력하세요")
-    days = max(1, min(30, int(days)))
-    crawler = NaverPlaceCrawler(timeout=18, pause=0.35)
-    stores = discover_stores(crawler, brand)
-    if not stores:
-        raise SystemExit(f"네이버 검색에서 '{brand}' 매장을 찾지 못했습니다")
-    rows = []
-    for i, store in enumerate(stores, 1):
-        row = {**store, "reviews": [], "error": None}
-        try:
-            reviews, review_url = crawler._graphql_reviews(store["place_id"], store.get("place_type") or "restaurant", 50)
-            row["review_url"] = review_url
-            row["reviews"] = recent([{"id": r.review_id, "text": r.text, "created_at": r.created_at, "rating": r.rating} for r in reviews], days)
-        except Exception as exc:
-            row["error"] = f"{type(exc).__name__}: {exc}"
-        rows.append(row)
-        print(f"[{i}/{len(stores)}] {row['name']} {'OK' if not row['error'] else 'FAIL'}")
-    generated = datetime.now(timezone.utc).isoformat()
-    failed = [r for r in rows if r.get("error")]
-    payload = {"brand": brand, "generated_at": generated, "window_days": days, "window_label": f"최근 {days}일", "stores_total": len(rows), "stores_ok": len(rows) - len(failed), "stores_failed": len(failed), "stores": rows}
+    stores = search_brand_places(brand)
+    payload = {"brand": brand, "generated_at": datetime.now(timezone.utc).isoformat(), "stores_total": len(stores), "stores": stores}
     slug = slugify(brand)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{slug}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     save_index(brand, slug, payload)
-    print(f"saved brand={brand} stores={len(rows)} ok={payload['stores_ok']} failed={len(failed)}")
+    print(f"saved brand={brand} stores={len(stores)}")
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("--brand", required=True)
-    p.add_argument("--days", type=int, default=7)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--brand", required=True)
+    parser.add_argument("--days", type=int, default=7)
+    args = parser.parse_args()
     main(args.brand, args.days)
