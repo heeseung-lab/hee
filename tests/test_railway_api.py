@@ -1,7 +1,7 @@
 from app import railway_api
 
 
-def test_railway_health_exposes_v19_batch_settings():
+def test_railway_health_exposes_v20_batch_settings():
     client = railway_api.app.test_client()
 
     response = client.get("/api/health")
@@ -9,7 +9,7 @@ def test_railway_health_exposes_v19_batch_settings():
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload["version"] == "1.9"
+    assert payload["version"] == "2.0"
     assert payload["max_search_concurrency"] == 5
 
 
@@ -43,4 +43,4 @@ def test_search_plan_starts_with_naver_map_listing():
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["areas"][0] == "네이버지도 검색목록"
+    assert payload["areas"][0] == '네이버지도 검색목록'
