@@ -1,14 +1,14 @@
 from app import railway_api
 
 
-def test_railway_health_exposes_v30_settings():
+def test_railway_health_exposes_v32_settings():
     client = railway_api.app.test_client()
     response = client.get("/api/health")
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload["version"] == "3.0"
-    assert payload["review_limit"] == 5
+    assert payload["version"] == "3.2"
+    assert payload["review_limit"] == 10
 
 
 def test_check_batch_preserves_order(monkeypatch):
