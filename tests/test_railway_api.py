@@ -1,7 +1,7 @@
 from app import railway_api
 
 
-def test_railway_health_exposes_v15_batch_settings():
+def test_railway_health_exposes_v16_batch_settings():
     client = railway_api.app.test_client()
 
     response = client.get("/api/health")
@@ -9,7 +9,7 @@ def test_railway_health_exposes_v15_batch_settings():
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload["version"] == "1.5"
+    assert payload["version"] == "1.6"
     assert payload["max_search_concurrency"] == 5
 
 
