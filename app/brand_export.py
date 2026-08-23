@@ -13,6 +13,7 @@ from app.naver_crawler import NaverPlaceCrawler
 KST = ZoneInfo("Asia/Seoul")
 OUT_DIR = Path("site/data/brands")
 INDEX = OUT_DIR / "index.json"
+NAVER_MAP_AREA = '네이버지도 검색목록'
 REGIONS = {
     "서울": (126.9780, 37.5665), "부산": (129.0756, 35.1796), "대구": (128.6014, 35.8714),
     "인천": (126.7052, 37.4563), "광주": (126.8526, 35.1595), "대전": (127.3845, 36.3504),
@@ -116,6 +117,38 @@ def better_place_name(current: str, candidate: str | None, brand: str) -> str:
     return current
 
 
+def better_place_address(current: str | None, candidate: str | None) -> str:
+    current = clean_place_name(current or "")
+    candidate = clean_place_name(candidate or "")
+    if not candidate:
+        return current
+    if not current or _text_quality(candidate) > _text_quality(current):
+        return candidate
+    if len(candidate) > len(current) and re.search(r"\d", candidate):
+        return candidate
+    return current
+
+
+def merge_store(stores: dict, store: dict, brand: str):
+    place_id = str(store.get("place_id") or "").strip()
+    if not place_id:
+        return
+    cleaned = {
+        **store,
+        "name": clean_place_name(store.get("name") or brand),
+        "address": clean_place_name(store.get("address") or ""),
+        "place_id": place_id,
+        "place_type": str(store.get("place_type") or "restaurant").lower(),
+    }
+    current = stores.get(place_id)
+    if not current:
+        stores[place_id] = cleaned
+        return
+    current["name"] = better_place_name(current.get("name"), cleaned.get("name"), brand)
+    current["address"] = better_place_address(current.get("address"), cleaned.get("address"))
+    current["place_type"] = current.get("place_type") or cleaned.get("place_type") or "restaurant"
+
+
 def place_home_details(crawler: NaverPlaceCrawler, place_id: str, place_type: str, brand: str):
     names = []
     address = None
@@ -149,6 +182,18 @@ def place_home_details(crawler: NaverPlaceCrawler, place_id: str, place_type: st
             break
     names.sort(key=lambda x: (x == brand, -len(x)))
     return (names[0] if names else None), address
+
+
+def enrich_place_row(crawler: NaverPlaceCrawler, row: dict, brand: str):
+    place_id = str(row.get("place_id") or "").strip()
+    if not place_id:
+        return row
+    home_name, home_address = place_home_details(crawler, place_id, row.get("place_type") or "restaurant", brand)
+    return {
+        **row,
+        "name": better_place_name(row.get("name"), home_name, brand),
+        "address": better_place_address(row.get("address"), home_address),
+    }
 
 
 def search_result_place_details(crawler: NaverPlaceCrawler, query: str, brand: str, place_id: str):
@@ -187,7 +232,13 @@ def search_result_place_details(crawler: NaverPlaceCrawler, query: str, brand: s
 def extract_map_rows(text: str, brand: str):
     text = decode_js(text)
     out, seen = [], set()
-    patterns = [re.compile(r'"id"\s*:\s*"?([0-9]{5,})"?'), re.compile(r'"placeId"\s*:\s*"?([0-9]{5,})"?'), re.compile(r'/place/([0-9]{5,})')]
+    patterns = [
+        re.compile(r'"id"\s*:\s*"?([0-9]{5,})"?'),
+        re.compile(r'"placeId"\s*:\s*"?([0-9]{5,})"?'),
+        re.compile(r'/place/([0-9]{5,})'),
+        re.compile(r'/search/[^"?#]+/place/([0-9]{5,})'),
+        re.compile(r'entry/place/([0-9]{5,})'),
+    ]
     candidates = []
     for pattern in patterns:
         candidates.extend(pattern.finditer(text))
@@ -201,7 +252,12 @@ def extract_map_rows(text: str, brand: str):
             continue
         name = brand
         candidates = []
-        for p in [r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"', r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"']:
+        name_patterns = [
+            r'"(?:name|businessName|title|displayName)"\s*:\s*"([^"]+)"',
+            r'"name"\s*:\s*\{[^{}]*"text"\s*:\s*"([^"]+)"',
+            r'>\s*([^<>"\']*' + re.escape(brand) + r'[^<>"\']*)\s*<',
+        ]
+        for p in name_patterns:
             for mm in re.finditer(p, block):
                 candidate = clean_place_name(mm.group(1))
                 if brand.lower() in candidate.lower() and candidate not in candidates:
@@ -218,6 +274,47 @@ def extract_map_rows(text: str, brand: str):
         seen.add(pid)
         out.append({"name": name, "address": address, "place_id": pid, "place_type": "restaurant"})
     return out
+
+
+def _map_search_page(crawler: NaverPlaceCrawler, query: str, brand: str):
+    url = f"https://map.naver.com/p/search/{quote(query)}"
+    headers = {
+        "Referer": "https://map.naver.com/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": crawler.session.headers.get("User-Agent", "Mozilla/5.0"),
+    }
+    try:
+        r = crawler.session.get(url, timeout=20, headers=headers)
+    except Exception:
+        return []
+    if r.status_code != 200:
+        return []
+    r.encoding = "utf-8"
+    return extract_map_rows(r.text, brand)
+
+
+def search_naver_map_listing(crawler: NaverPlaceCrawler, brand: str):
+    found = {}
+    query = brand.strip()
+    for row in _map_search_page(crawler, query, brand):
+        merge_store(found, enrich_place_row(crawler, row, brand), brand)
+    for row in _api_search(crawler, query, brand, REGIONS['서울']):
+        merge_store(found, enrich_place_row(crawler, row, brand), brand)
+    try:
+        match = crawler.resolve_place(query)
+        detail_name, detail_address = search_result_place_details(crawler, query, brand, match.place_id)
+        home_name, home_address = place_home_details(crawler, match.place_id, match.place_type or "restaurant", brand)
+        name = better_place_name(getattr(match, "name", None) or brand, detail_name, brand)
+        name = better_place_name(name, home_name, brand)
+        merge_store(found, {
+            "name": name,
+            "address": getattr(match, "address", None) or detail_address or home_address or "",
+            "place_id": match.place_id,
+            "place_type": match.place_type or "restaurant",
+        }, brand)
+    except Exception:
+        pass
+    return list(found.values())
 
 
 def _walk_place_rows(obj, brand: str, out: dict):
@@ -268,10 +365,12 @@ def _coord_for_area(area: str):
 
 
 def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
+    if area == NAVER_MAP_AREA:
+        return search_naver_map_listing(crawler, brand)
     query = f"{brand} {area}".strip()
     found = {}
     for row in _api_search(crawler, query, brand, _coord_for_area(area)):
-        found[row["place_id"]] = row
+        merge_store(found, row, brand)
     # 지도 API 결과 유무와 상관없이 통합검색 1건을 합산한다. 기존에는 지도 결과가 있으면 폴백을 건너뛰어 누락이 컸다.
     try:
         match = crawler.resolve_place(query)
@@ -288,8 +387,7 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
         current = found.get(match.place_id)
         if current:
             current["name"] = better_place_name(current.get("name"), fallback_row["name"], brand)
-            if not current.get("address") or current.get("address") == area:
-                current["address"] = fallback_row["address"]
+            current["address"] = better_place_address(current.get("address"), fallback_row["address"])
             current["place_type"] = current.get("place_type") or fallback_row["place_type"]
         else:
             found[match.place_id] = fallback_row
@@ -300,15 +398,17 @@ def search_one_area(crawler: NaverPlaceCrawler, brand: str, area: str):
 
 def discover_stores(crawler: NaverPlaceCrawler, brand: str):
     stores = {}
+    for row in search_naver_map_listing(crawler, brand):
+        merge_store(stores, row, brand)
     # 광역 단위 지도검색
     for query, coord in [(brand, REGIONS["서울"])] + [(f"{brand} {region}", coord) for region, coord in REGIONS.items()]:
         for row in _api_search(crawler, query, brand, coord):
-            stores[row["place_id"]] = row
+            merge_store(stores, row, brand)
         time.sleep(0.08)
     # 시군구 단위 지도검색 + 통합검색을 항상 추가해 결과 누락을 줄인다.
     for area in SEARCH_AREAS:
         for row in search_one_area(crawler, brand, area):
-            stores[row["place_id"]] = row
+            merge_store(stores, row, brand)
         time.sleep(0.06)
     return sorted(stores.values(), key=lambda x: (x.get("name", ""), x.get("address", "")))
 
