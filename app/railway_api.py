@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, send_from_directory
 
-from app.brand_export import discover_stores, recent
+from app.brand_export import SEARCH_AREAS, REGIONS, discover_stores, recent, search_one_area
 from app.naver_crawler import NaverPlaceCrawler
 from app.review_analyzer import analyze_review
 
@@ -35,7 +35,28 @@ def options(_):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.2"})
+    return jsonify({"ok": True, "service": "brand-review-railway", "version": "1.3"})
+
+
+@app.get("/api/search-plan")
+def search_plan():
+    # 화면에서 실제 수집 과정을 단계별로 보여주기 위한 검색 계획
+    return jsonify({"ok": True, "areas": SEARCH_AREAS, "count": len(SEARCH_AREAS)})
+
+
+@app.post("/api/search-area")
+def search_area():
+    body = request.get_json(silent=True) or {}
+    brand = str(body.get("brand", "")).strip()
+    area = str(body.get("area", "")).strip()
+    if len(brand) < 2 or not area:
+        return jsonify({"ok": False, "error": "브랜드명과 검색지역이 필요합니다"}), 400
+    try:
+        crawler = NaverPlaceCrawler(timeout=18, pause=0.08)
+        stores = search_one_area(crawler, brand, area)
+        return jsonify({"ok": True, "brand": brand, "area": area, "count": len(stores), "stores": stores})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 502
 
 
 @app.post("/api/search")
@@ -45,9 +66,9 @@ def search_brand():
     if len(brand) < 2:
         return jsonify({"ok": False, "error": "브랜드명을 2글자 이상 입력하세요"}), 400
     try:
-        crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
+        crawler = NaverPlaceCrawler(timeout=18, pause=0.08)
         stores = discover_stores(crawler, brand)
-        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores, "source": "naver-map-or-search-fallback"})
+        return jsonify({"ok": True, "brand": brand, "count": len(stores), "stores": stores, "source": "naver-map-plus-search"})
     except Exception as exc:
         return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 502
 
@@ -63,7 +84,7 @@ def check_store():
     if len(name) < 2:
         return jsonify({"ok": False, "error": "매장명이 필요합니다"}), 400
     try:
-        crawler = NaverPlaceCrawler(timeout=18, pause=0.15)
+        crawler = NaverPlaceCrawler(timeout=18, pause=0.12)
         if place_id.isdigit():
             try:
                 reviews, review_url = crawler._graphql_reviews(place_id, place_type, 50)
