@@ -1,4 +1,4 @@
-from app.brand_export import better_place_name, extract_map_rows
+from app.brand_export import better_place_name, clean_place_name, extract_map_rows
 
 
 def test_extract_map_rows_prefers_branch_place_name():
@@ -11,3 +11,9 @@ def test_extract_map_rows_prefers_branch_place_name():
 
 def test_better_place_name_replaces_generic_brand_name():
     assert better_place_name("은화수식당", "은화수식당 화성봉담점", "은화수식당") == "은화수식당 화성봉담점"
+
+
+def test_clean_place_name_repairs_mojibake_address():
+    broken = "서울 강남구 테헤란로 410".encode("utf-8").decode("latin1")
+
+    assert clean_place_name(broken) == "서울 강남구 테헤란로 410"
