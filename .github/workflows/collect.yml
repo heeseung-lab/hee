@@ -2,9 +2,6 @@ name: collect-reviews
 
 on:
   workflow_dispatch:
-  schedule:
-    # GitHub Actions cron is UTC. 00:00 / 09:00 UTC = 09:00 / 18:00 KST.
-    - cron: '0 0,9 * * *'
 
 jobs:
   collect:
