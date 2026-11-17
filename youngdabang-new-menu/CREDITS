@@ -1,0 +1,12 @@
+청년다방 신메뉴 (수채화) — third-party assets
+
+Fonts (SIL Open Font License 1.1, via Google Fonts, subset to the characters used):
+- Noto Serif KR — Google / Adobe — https://fonts.google.com/noto/specimen/Noto+Serif+KR
+- Nanum Pen Script — Sandoll / Naver — https://fonts.google.com/specimen/Nanum+Pen+Script
+- IBM Plex Mono — IBM — https://fonts.google.com/specimen/IBM+Plex+Mono
+
+Brush engine: engine.js from the Lemo-Opuscar "Watercolor Brush" style (MIT), github.com/lemomo-ai/lemo-opuscar
+Picture, paper texture, music and sound effects: generated in code for this film (no samples, no stock, no AI images).
+Voice: none.
+
+Brand text "청년다방" and the BI colour #55AAB8 are the brand owner's; menu names and copy are draft examples.
